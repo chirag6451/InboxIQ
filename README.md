@@ -1,0 +1,2 @@
+unzip gmail_invoice_scanner.zip
+cd gmail_invoice_scanner
