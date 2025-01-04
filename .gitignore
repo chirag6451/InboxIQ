@@ -51,3 +51,14 @@ backup_*/
 
 # Mac
 .DS_Store
+.AppleDouble
+.LSOverride
+
+# Generated reports and attachments
+email_report_*.txt
+email_report_*.html
+attachments/
+
+# Email processing artifacts
+email_processing.log
+invoice_detection.log

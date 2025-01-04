@@ -18,7 +18,10 @@ class Config:
     GMAIL_SCOPES: List[str] = field(
         default_factory=lambda: [
             'https://www.googleapis.com/auth/gmail.modify',
+            'https://www.googleapis.com/auth/gmail.compose',
             'https://www.googleapis.com/auth/gmail.send',
+            'https://www.googleapis.com/auth/gmail.readonly',
+            'https://www.googleapis.com/auth/calendar',
             'https://www.googleapis.com/auth/calendar.events'
         ]
     )
@@ -260,9 +263,16 @@ class Config:
         return cls()
     
     @classmethod
-    def get_gmail_scopes(cls) -> List[str]:
-        """Get required Gmail API scopes"""
-        return cls.GMAIL_SCOPES
+    def get_gmail_scopes(cls):
+        """Get the Gmail API scopes required for the application"""
+        return [
+            'https://www.googleapis.com/auth/gmail.modify',
+            'https://www.googleapis.com/auth/gmail.compose',
+            'https://www.googleapis.com/auth/gmail.send',
+            'https://www.googleapis.com/auth/gmail.readonly',
+            'https://www.googleapis.com/auth/calendar',
+            'https://www.googleapis.com/auth/calendar.events'
+        ]
 
 # ----------------------------------------------------------------------------------------
 # Additional Category Suggestions (not added above, but you might consider for future use):
