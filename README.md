@@ -53,7 +53,7 @@ An intelligent email management system that automatically processes, categorizes
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/InboxIQ.git
+git clone https://github.com/chirag6451/InboxIQ.git
 cd InboxIQ
 ```
 
@@ -91,51 +91,93 @@ python app.py
 
 2. Open your browser and go to:
 ```
-http://localhost:8989
+http://localhost:8989/auth
 ```
 
-3. Follow the authentication process to grant access to your Gmail account
+3. Follow the Gmail authentication process. This will:
+   - Redirect you to Google's consent screen
+   - Ask for permissions to access your Gmail and Calendar
+   - Redirect back to your application
+   - Create a `token.json` file for future authentication
 
-4. The application will start processing your emails based on the configuration
+4. The application will start processing your emails based on your configuration
 
-## Configuration
+## Configuration Guide
 
-### Email Processing Configuration
-Edit `config.py` to customize:
-- Email categories and classification rules
-- Action item detection preferences
-- Forwarding rules and recipients
-- Processing intervals and limits
+### Email Categories Configuration
 
-### Calendar Settings
-Adjust calendar preferences in `config.py`:
+The system uses categories to organize and process emails effectively. Here's a real-world example of how to configure categories in `config.py`:
+
 ```python
-CALENDAR_REMINDER_SETTINGS = {
-    'start_time': '09:00',           # Day start time
-    'end_time': '17:00',             # Day end time
-    'reminder_advance': 15,          # Minutes before event
-    'default_duration': 30,          # Default event duration
-    'reminder_slot_duration': 15     # Spacing between events
+EMAIL_CATEGORIES = {
+    'invoice': {
+        'enabled': True,
+        'keywords': ['invoice', 'payment', 'bill', 'receipt', 'purchase'],
+        'target_emails': ['accounting@company.com'],
+        'calendar_settings': {
+            'create_reminder': True,
+            'reminder_advance': 20,  # minutes
+            'default_duration': 30,
+            'color': 'green'
+        }
+    },
+    'meeting': {
+        'enabled': True,
+        'keywords': ['meet', 'sync', 'discussion', 'call', 'conference'],
+        'target_emails': ['team@company.com'],
+        'calendar_settings': {
+            'create_reminder': True,
+            'reminder_advance': 15,
+            'default_duration': 45,
+            'color': 'blue'
+        }
+    },
+    'project_update': {
+        'enabled': True,
+        'keywords': ['project', 'update', 'status', 'progress', 'milestone'],
+        'target_emails': ['manager@company.com', 'team@company.com'],
+        'calendar_settings': {
+            'create_reminder': True,
+            'reminder_advance': 30,
+            'default_duration': 60,
+            'color': 'red'
+        }
+    }
 }
 ```
 
-### Backup Configuration
-The backup system (`backup_code.sh`) manages project backups:
-```bash
-# Create new backup
-./backup_code.sh backup
+### Real-world Examples
 
-# List all backups
-./backup_code.sh list
+1. **Invoice Processing**
+   - When an email with "Invoice #123 for Project X" arrives
+   - System detects keywords: 'invoice'
+   - Automatically forwards to accounting@company.com
+   - Creates calendar reminder for payment due date
 
-# Restore latest backup
-./backup_code.sh restore-latest
+2. **Meeting Coordination**
+   - Email subject: "Team Sync Discussion - Project Y"
+   - System detects keywords: 'sync', 'discussion'
+   - Creates calendar event with 45-minute duration
+   - Sets reminder 15 minutes before
+   - Notifies team@company.com
 
-# Restore specific backup
-./backup_code.sh restore /path/to/backup
+3. **Project Updates**
+   - Email contains "Project Z Milestone Update"
+   - System detects keywords: 'project', 'update'
+   - Forwards to both manager and team
+   - Creates 1-hour calendar event for review
 
-# Delete all backups
-./backup_code.sh delete-all
+### Calendar Integration
+
+Configure calendar settings for different event types:
+```python
+CALENDAR_REMINDER_SETTINGS = {
+    'start_time': '09:00',        # Day start time
+    'end_time': '17:00',          # Day end time
+    'reminder_advance': 15,        # Minutes before event
+    'default_duration': 30,        # Default event duration
+    'reminder_slot_duration': 15   # Spacing between events
+}
 ```
 
 ## Usage
@@ -205,7 +247,9 @@ Summary reports are sent to your email and include:
 5. Create a Pull Request
 
 ## License
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT License
+
+Copyright (c) 2025 [Chirag Ahmedabadi/Kansara](https://www.linkedin.com/in/indapoint/)
 
 ## Acknowledgments
 - OpenAI for GPT API
