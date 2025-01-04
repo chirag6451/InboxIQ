@@ -6,15 +6,19 @@ from google.oauth2.credentials import Credentials
 from google.oauth2 import service_account
 import logging
 import json
+from flask import session
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 class GmailAuthenticator:
     """Handles Gmail API authentication using OAuth2"""
 
     def __init__(self, scopes):
         self.scopes = scopes
-        self.logger = logging.getLogger(__name__)
+        self.logger = logger
         self._setup_oauth_config()
-        self._current_flow = None
+        self._flow = None
 
     def _setup_oauth_config(self):
         """Setup OAuth configuration"""
@@ -23,46 +27,60 @@ class GmailAuthenticator:
             with open('credentials.json', 'r') as f:
                 self.client_config = json.load(f)
                 self.logger.info("Loaded OAuth client configuration")
+                self.logger.debug(f"Client config: {self.client_config}")
         else:
+            self.logger.error("credentials.json not found")
             raise FileNotFoundError("OAuth client configuration file not found")
 
     def _get_redirect_uri(self):
         """Get the correct redirect URI from client configuration"""
-        try:
-            # Get the redirect URI from the client configuration
-            redirect_uri = self.client_config['web']['redirect_uris'][0]
-            self.logger.info(f"Using configured redirect URI: {redirect_uri}")
-            return redirect_uri
-        except (KeyError, IndexError) as e:
-            self.logger.error(f"Error getting redirect URI from config: {str(e)}")
-            raise
+        # Use the callback URL from app.py
+        redirect_uri = 'http://localhost:8989/oauth2callback'
+        self.logger.debug(f"Using redirect URI: {redirect_uri}")
+        return redirect_uri
 
     def get_authorization_url(self):
         """Get the authorization URL to start OAuth flow"""
-        self._current_flow = Flow.from_client_config(
-            self.client_config,
-            scopes=self.scopes,
-            redirect_uri=self._get_redirect_uri()
-        )
-        auth_url, _ = self._current_flow.authorization_url(
-            access_type='offline',
-            include_granted_scopes='true'
-        )
-        return auth_url
+        try:
+            self.logger.debug("Creating OAuth flow")
+            self._flow = Flow.from_client_config(
+                self.client_config,
+                scopes=self.scopes,
+                redirect_uri=self._get_redirect_uri()
+            )
+            
+            self.logger.debug("Generating authorization URL")
+            auth_url, state = self._flow.authorization_url(
+                access_type='offline',
+                include_granted_scopes='true'
+            )
+            
+            # Store the state in the session
+            session['oauth_state'] = state
+            self.logger.debug(f"Stored state in session: {state}")
+            self.logger.debug(f"Full session: {session}")
+            
+            return auth_url
+        except Exception as e:
+            self.logger.error(f"Error generating authorization URL: {str(e)}")
+            raise
 
     def _load_credentials_from_token(self):
         """Load credentials from token file if it exists."""
-        if os.path.exists('token.json'):
-            try:
+        try:
+            if os.path.exists('token.json'):
                 with open('token.json', 'r') as token:
                     creds_info = token.read()
                     self.logger.info("Found existing token.json")
+                    self.logger.debug(f"Token info: {creds_info}")
                     return Credentials.from_authorized_user_info(eval(creds_info), self.scopes)
-            except Exception as e:
-                self.logger.error(f"Error loading token.json: {str(e)}")
-                if os.path.exists('token.json'):
-                    os.remove('token.json')
-                    self.logger.info("Removed invalid token.json")
+            else:
+                self.logger.debug("No token.json found")
+        except Exception as e:
+            self.logger.error(f"Error loading token.json: {str(e)}")
+            if os.path.exists('token.json'):
+                os.remove('token.json')
+                self.logger.info("Removed invalid token.json")
         return None
 
     def _save_credentials(self, creds):
@@ -81,6 +99,7 @@ class GmailAuthenticator:
             self.logger.info("Saved credentials to token.json")
         except Exception as e:
             self.logger.error(f"Error saving credentials: {str(e)}")
+            raise
 
     def get_credentials(self):
         """Get valid user credentials from storage or initiate OAuth2 flow."""
@@ -117,10 +136,35 @@ class GmailAuthenticator:
     def handle_oauth2_callback(self, code, state):
         """Handle the OAuth2 callback"""
         try:
-            # Exchange the authorization code for credentials
-            self._current_flow.fetch_token(code=code)
-            creds = self._current_flow.credentials
+            self.logger.debug("Starting OAuth callback handling")
+            self.logger.debug(f"Received state: {state}")
+            self.logger.debug(f"Session state: {session.get('oauth_state')}")
+            
+            if not self._flow:
+                self.logger.error("OAuth flow not initialized")
+                raise ValueError("OAuth flow not initialized")
+            
+            stored_state = session.get('oauth_state')
+            if not stored_state:
+                self.logger.error("No state found in session")
+                raise ValueError("No state found in session")
+            
+            if stored_state != state:
+                self.logger.error(f"State mismatch. Expected: {stored_state}, Got: {state}")
+                raise ValueError("Invalid state parameter")
+            
+            self.logger.debug("Fetching token")
+            self._flow.fetch_token(code=code)
+            creds = self._flow.credentials
+            
+            self.logger.debug("Saving credentials")
             self._save_credentials(creds)
+            
+            # Clean up
+            session.pop('oauth_state', None)
+            self._flow = None
+            self.logger.debug("OAuth flow completed successfully")
+            
             return creds
         except Exception as e:
             self.logger.error(f"Error handling OAuth callback: {str(e)}")
@@ -129,11 +173,60 @@ class GmailAuthenticator:
     def revoke_credentials(self):
         """Revoke the current credentials and remove stored tokens."""
         try:
+            # Try to load existing credentials
+            creds = self._load_credentials_from_token()
+            if creds:
+                # Revoke access
+                import google.oauth2.credentials
+                import google.auth.transport.requests
+                import requests
+                
+                # Build the revoke request
+                revoke_url = "https://accounts.google.com/o/oauth2/revoke"
+                params = {'token': creds.token}
+                headers = {'content-type': 'application/x-www-form-urlencoded'}
+                
+                # Make the request
+                response = requests.post(revoke_url, params=params, headers=headers)
+                
+                # Remove the token file regardless of the response
+                if os.path.exists('token.json'):
+                    os.remove('token.json')
+                    self.logger.info("Removed token.json file")
+                
+                if response.status_code == 200:
+                    self.logger.info("Successfully revoked credentials")
+                    return True
+                else:
+                    self.logger.error(f"Failed to revoke credentials. Status code: {response.status_code}")
+                    return False
+            else:
+                # If no credentials exist, just return True
+                self.logger.info("No credentials found to revoke")
+                return True
+                
+        except Exception as e:
+            self.logger.error(f"Error revoking credentials: {str(e)}")
+            # Try to remove the token file anyway
             if os.path.exists('token.json'):
                 os.remove('token.json')
                 self.logger.info("Removed token.json file")
-            self.logger.info("Successfully revoked credentials")
-            return True
-        except Exception as e:
-            self.logger.error(f"Error revoking credentials: {str(e)}")
             return False
+
+    def get_user_email(self):
+        """Get the email address of the authenticated user."""
+        try:
+            creds = self._load_credentials_from_token()
+            if not creds:
+                return None
+                
+            from googleapiclient.discovery import build
+            service = build('gmail', 'v1', credentials=creds)
+            
+            # Get the user's profile
+            profile = service.users().getProfile(userId='me').execute()
+            return profile.get('emailAddress')
+            
+        except Exception as e:
+            self.logger.error(f"Error getting user email: {str(e)}")
+            return None

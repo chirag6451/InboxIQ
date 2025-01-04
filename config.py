@@ -140,9 +140,19 @@ class Config:
             raise ValueError("OPENAI_RATE_LIMIT must be positive")
 
     def _validate_confidence_threshold(self):
-        """Validate confidence threshold"""
+        """Validate confidence threshold is between 0 and 1"""
         if not 0 <= self.MIN_CONFIDENCE_THRESHOLD <= 1:
             raise ValueError("MIN_CONFIDENCE_THRESHOLD must be between 0 and 1")
+
+    @classmethod
+    def get_gmail_scopes(cls) -> List[str]:
+        """Get Gmail API scopes required for the application"""
+        return [
+            'https://www.googleapis.com/auth/gmail.modify',
+            'https://www.googleapis.com/auth/gmail.readonly',
+            'https://www.googleapis.com/auth/gmail.labels',
+            'https://www.googleapis.com/auth/gmail.send'
+        ]
 
     def _setup_directories(self):
         """Create necessary directories"""
