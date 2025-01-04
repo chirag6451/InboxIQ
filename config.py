@@ -41,13 +41,13 @@ class Config:
     # User Configuration
     USER_DETAILS: Dict[str, str] = field(
         default_factory=lambda: {
-            'name': 'Chirag',  # User's first name
-            'full_name': 'Chirag Ahmed Abadi',  # User's full name
-            'company': 'IndaPoint',  # Company name
-            'position': 'CEO',  # Job position
-            'timezone': 'Asia/Kolkata',  # User's timezone
+            'name': 'John',  # User's first name
+            'full_name': 'John Smith',  # User's full name
+            'company': 'Example Corp',  # Company name
+            'position': 'Manager',  # Job position
+            'timezone': 'UTC',  # User's timezone
             'preferred_language': 'English',  # Preferred language for communications
-            'email_signature': 'Best regards,\nChirag Ahmed Abadi\nCEO | IndaPoint'  # Email signature
+            'email_signature': 'Best regards,\nJohn Smith\nManager | Example Corp'  # Email signature
         }
     )
     
@@ -57,8 +57,8 @@ class Config:
             'work': {
                 'enabled': True,
                 'keywords': ['project', 'task', 'deadline', 'update', 'status'],
-                'target_emails': ['chirag@indapoint.com'],
-                'cc_to': ['manager@company.com'],
+                'target_emails': ['manager@example.com'],
+                'cc_to': ['team@example.com'],
                 'calendar_settings': {
                     'create_reminder': True,
                     'reminder_advance': 45,  # minutes
@@ -66,13 +66,13 @@ class Config:
                     'color': 'red',
                     'notification': True,
                     'calendar_priorities': ['urgent', 'important'],
-                    'timezone': 'Asia/Kolkata'
+                    'timezone': 'UTC'
                 }
             },
             'meeting': {
                 'enabled': True,
                 'keywords': ['meet', 'sync', 'discussion', 'call', 'conference'],
-                'target_emails': ['chirag@indapoint.com'],
+                'target_emails': ['team@example.com'],
                 'calendar_settings': {
                     'create_reminder': True,
                     'reminder_advance': 30,
@@ -80,13 +80,13 @@ class Config:
                     'color': 'yellow',
                     'notification': True,
                     'calendar_priorities': ['urgent', 'important', 'normal'],
-                    'timezone': 'Asia/Kolkata'
+                    'timezone': 'UTC'
                 }
             },
             'deadline': {
                 'enabled': True,
                 'keywords': ['due', 'deadline', 'by', 'until', 'complete'],
-                'target_emails': ['chirag@indapoint.com'],
+                'target_emails': ['manager@example.com'],
                 'calendar_settings': {
                     'create_reminder': True,
                     'reminder_advance': 60,
@@ -94,13 +94,13 @@ class Config:
                     'color': 'blue',
                     'notification': True,
                     'calendar_priorities': ['urgent', 'important'],
-                    'timezone': 'Asia/Kolkata'
+                    'timezone': 'UTC'
                 }
             },
             'invoice': {
                 'enabled': True,
                 'keywords': ['invoice', 'payment', 'bill', 'receipt', 'purchase'],
-                'target_emails': ['chirag@indapoint.com'],
+                'target_emails': ['finance@example.com'],
                 'calendar_settings': {
                     'create_reminder': True,
                     'reminder_advance': 20,
@@ -108,13 +108,13 @@ class Config:
                     'color': 'green',
                     'notification': True,
                     'calendar_priorities': ['urgent', 'important'],
-                    'timezone': 'Asia/Kolkata'
+                    'timezone': 'UTC'
                 }
             },
             'report': {
                 'enabled': True,
                 'keywords': ['report', 'analysis', 'metrics', 'performance', 'results'],
-                'target_emails': ['chirag@indapoint.com'],
+                'target_emails': ['reports@example.com'],
                 'calendar_settings': {
                     'create_reminder': True,
                     'reminder_advance': 15,
@@ -122,13 +122,13 @@ class Config:
                     'color': 'orange',
                     'notification': True,
                     'calendar_priorities': ['urgent'],
-                    'timezone': 'Asia/Kolkata'
+                    'timezone': 'UTC'
                 }
             },
             'follow_up': {
                 'enabled': True,
                 'keywords': ['follow up', 'following up', 'checking in', 'status', 'update'],
-                'target_emails': ['chirag@indapoint.com'],
+                'target_emails': ['team@example.com'],
                 'calendar_settings': {
                     'create_reminder': True,
                     'reminder_advance': 30,
@@ -136,14 +136,14 @@ class Config:
                     'color': 'purple',
                     'notification': True,
                     'calendar_priorities': ['urgent', 'important'],
-                    'timezone': 'Asia/Kolkata'
+                    'timezone': 'UTC'
                 }
             },
             'support': {
                 'enabled': True,
                 'keywords': ['help', 'support', 'issue', 'bug', 'ticket'],
-                'target_emails': ['chirag@indapoint.com'],
-                'cc_to': ['manager@company.com'],
+                'target_emails': ['support@example.com'],
+                'cc_to': ['manager@example.com'],
                 'calendar_settings': {
                     'create_reminder': True,
                     'reminder_advance': 30,
@@ -151,14 +151,14 @@ class Config:
                     'color': 'brown',
                     'notification': True,
                     'calendar_priorities': ['urgent', 'important'],
-                    'timezone': 'Asia/Kolkata'
+                    'timezone': 'UTC'
                 }
             },
             'project': {
                 'enabled': True,
                 'keywords': ['project', 'scope', 'planning', 'phase', 'milestone'],
-                'target_emails': ['chirag@indapoint.com'],
-                'cc_to': ['pm@company.com'],
+                'target_emails': ['project@example.com'],
+                'cc_to': ['manager@example.com'],
                 'calendar_settings': {
                     'create_reminder': True,
                     'reminder_advance': 45,
@@ -166,14 +166,14 @@ class Config:
                     'color': 'gray',
                     'notification': True,
                     'calendar_priorities': ['urgent', 'important', 'normal'],
-                    'timezone': 'Asia/Kolkata'
+                    'timezone': 'UTC'
                 }
             },
             'sales': {
                 'enabled': True,
                 'keywords': ['sale', 'deal', 'offer', 'discount', 'contract'],
-                'target_emails': ['chirag@indapoint.com'],
-                'cc_to': ['manager@company.com'],
+                'target_emails': ['sales@example.com'],
+                'cc_to': ['manager@example.com'],
                 'calendar_settings': {
                     'create_reminder': True,
                     'reminder_advance': 30,
@@ -181,14 +181,14 @@ class Config:
                     'color': 'pink',
                     'notification': True,
                     'calendar_priorities': ['urgent', 'important'],
-                    'timezone': 'Asia/Kolkata'
+                    'timezone': 'UTC'
                 }
             },
             'inquiry_lead': {
                 'enabled': True,
                 'keywords': ['lead', 'prospect', 'inquiry', 'request', 'information'],
-                'target_emails': ['chirag@indapoint.com'],
-                'cc_to': ['manager@company.com'],
+                'target_emails': ['sales@example.com'],
+                'cc_to': ['manager@example.com'],
                 'calendar_settings': {
                     'create_reminder': True,
                     'reminder_advance': 20,
@@ -196,91 +196,13 @@ class Config:
                     'color': 'pink',
                     'notification': True,
                     'calendar_priorities': ['urgent', 'important', 'normal'],
-                    'timezone': 'Asia/Kolkata'
+                    'timezone': 'UTC'
                 }
-            },
-            'personal': {
-                'enabled': True,
-                'keywords': ['family', 'friends', 'birthday', 'anniversary', 'personal'],
-                'target_emails': ['chirag@indapoint.com'],
-                'calendar_settings': {
-                    'create_reminder': True,
-                    'reminder_advance': 60,
-                    'default_duration': 60,
-                    'color': 'yellow',
-                    'notification': True,
-                    'calendar_priorities': ['urgent', 'important', 'normal'],
-                    'timezone': 'Asia/Kolkata'
-                }
-            },
-            'spam': {
-                'enabled': False,
-                'keywords': ['spam', 'junk', 'unsubscribe', 'promotional'],
-                'target_emails': [],
-                'calendar_settings': {
-                    'create_reminder': False,
-                    'calendar_priorities': [],
-                    'timezone': 'Asia/Kolkata'
-                }
-            },
-            
-            # New Categories
+            }
         }
     )
-    
-    # Calendar settings
-    CALENDAR_SETTINGS = {
-        'default_reminder_minutes': 30,
-        'timezone': 'Asia/Kolkata'
-    }
-    
-    def __post_init__(self):
-        """Validate configuration after initialization"""
-        self._validate_categories()
-        
-    def _validate_categories(self):
-        """Validate email category configurations"""
-        for category, config in self.EMAIL_CATEGORIES.items():
-            if not isinstance(config, dict):
-                raise ValueError(f"Category {category} configuration must be a dictionary")
-            
-            required_keys = {'enabled', 'keywords', 'target_emails', 'calendar_settings'}
-            if not all(key in config for key in required_keys):
-                raise ValueError(f"Category {category} missing required configuration keys")
-            
-            if not isinstance(config['keywords'], list):
-                raise ValueError(f"Keywords for category {category} must be a list")
-                
-            if not isinstance(config['target_emails'], list):
-                raise ValueError(f"Target emails for category {category} must be a list")
-                
-            if not isinstance(config['calendar_settings'], dict):
-                raise ValueError(f"Calendar settings for category {category} must be a dictionary")
-    
-    @classmethod
-    def from_env(cls) -> 'Config':
-        """Create configuration from environment variables"""
-        return cls()
-    
-    @classmethod
-    def get_gmail_scopes(cls):
-        """Get the Gmail API scopes required for the application"""
-        return [
-            'https://www.googleapis.com/auth/gmail.modify',
-            'https://www.googleapis.com/auth/gmail.compose',
-            'https://www.googleapis.com/auth/gmail.send',
-            'https://www.googleapis.com/auth/gmail.readonly',
-            'https://www.googleapis.com/auth/calendar',
-            'https://www.googleapis.com/auth/calendar.events'
-        ]
 
-# ----------------------------------------------------------------------------------------
-# Additional Category Suggestions (not added above, but you might consider for future use):
-# 1. 'marketing': for emails containing campaign, SEO, ads, branding, social media
-# 2. 'finance': for emails containing budget, expense, reimbursement, accounts, investment
-# 3. 'legal': for emails containing contract, agreement, NDA, compliance, policy
-# 4. 'hr': for emails containing recruitment, hiring, interview, employee relations
-# 5. 'travel': for emails containing flights, booking, itinerary, hotel, trip
-# 6. 'vacation': for personal or out-of-office reminders
-# 7. 'health': for emails related to medical appointments, insurance, wellness
-# ----------------------------------------------------------------------------------------
+    @classmethod
+    def get_gmail_scopes(cls) -> List[str]:
+        """Get the Gmail API scopes required for the application."""
+        return cls.GMAIL_SCOPES
