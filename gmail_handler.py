@@ -14,29 +14,36 @@ from google.oauth2.credentials import Credentials
 class GmailHandler:
     """Handles Gmail API operations"""
     
-    def __init__(self, credentials=None, config=None):
-        """Initialize Gmail handler"""
+    def __init__(self, credentials: Any, config: Any):
+        """Initialize Gmail handler with credentials and config"""
         self.logger = logging.getLogger(__name__)
-        self.logger.info("Initializing Gmail handler")
-        self.config = config or Config.from_env()
+        self.config = config
+        self.credentials = credentials  # Store credentials for other services to use
         
         try:
-            if credentials:
-                self.service = build('gmail', 'v1', credentials=credentials)
-            else:
-                # Load credentials from token file
-                if os.path.exists('token.json'):
-                    with open('token.json', 'r') as token:
-                        creds_info = eval(token.read())
-                        creds = Credentials.from_authorized_user_info(creds_info, self.config.GMAIL_SCOPES)
-                        self.service = build('gmail', 'v1', credentials=creds)
-                else:
-                    raise ValueError("No credentials provided and no token.json found")
-                    
-            self._verify_connection()
+            self.service = build('gmail', 'v1', credentials=credentials)
+            self.logger.info("Initializing Gmail handler")
+            
+            # Test authentication by getting user profile
+            user_info = self.service.users().getProfile(userId='me').execute()
+            self.email = user_info['emailAddress']
+            self.logger.info(f"Successfully authenticated as: {self.email}")
+            
+            # Get mailbox details
+            profile = self.service.users().getProfile(userId='me').execute()
+            if 'threadsTotal' in profile:
+                self.logger.info(f"Email thread size: {profile['threadsTotal']}")
+            
+            # Storage info might not be available for all accounts
+            if 'storageUsed' in profile:
+                storage_used = int(profile.get('storageUsed', 0))
+                storage_mb = storage_used / (1024 * 1024)  # Convert to MB
+                self.logger.info(f"Storage used: {storage_mb:.2f} MB")
+            
             self.logger.info("Gmail handler initialized successfully")
+            
         except Exception as e:
-            self.logger.error(f"Failed to initialize Gmail handler: {str(e)}")
+            self.logger.error(f"Error initializing Gmail handler: {str(e)}")
             raise
 
     def _verify_connection(self):
@@ -105,69 +112,58 @@ class GmailHandler:
             self.logger.error(f"Failed to fetch emails: {str(e)}")
             return []
 
-    def get_unread_emails(self, email_address: str) -> List[Dict[str, Any]]:
-        """Fetch unread emails from specified email address"""
+    def get_unread_emails(self, max_results: int = 10) -> List[Dict[str, Any]]:
+        """Get unread emails with their details"""
         try:
-            self.logger.info(f"Searching for unread emails from: {email_address}")
-
-            # First, verify we can list labels to test permissions
-            try:
-                labels = self.service.users().labels().list(userId='me').execute()
-                self.logger.info("Successfully accessed Gmail labels")
-                self.logger.info(f"Available labels: {[label['name'] for label in labels.get('labels', [])]}")
-            except Exception as e:
-                self.logger.error(f"Failed to access Gmail labels: {str(e)}")
-                self.logger.error("This indicates a possible permissions issue")
-                return []
-
-            query = f'from:{email_address} is:unread'
-            self.logger.info(f"Using Gmail search query: {query}")
-
-            try:
-                results = self.service.users().messages().list(
-                    userId='me',
-                    q=query
-                ).execute()
-            except Exception as e:
-                self.logger.error(f"Failed to search messages: {str(e)}")
-                self.logger.error("This might indicate an issue with the search query or permissions")
-                return []
-
-            messages = results.get('messages', [])
+            messages = self.list_messages(query='is:unread', max_results=max_results)
             emails = []
-
-            self.logger.info(f"Found {len(messages)} unread messages")
-            if len(messages) == 0:
-                self.logger.info("No unread messages found. This could mean either:")
-                self.logger.info("1. There are no unread emails")
-                self.logger.info("2. The service account might need additional permissions")
-                self.logger.info(f"Current user being impersonated: {self.config.GMAIL_USER}")
-                self.logger.info("Please verify:")
-                self.logger.info("1. The service account has domain-wide delegation")
-                self.logger.info("2. The necessary scopes are enabled in Google Workspace")
-                self.logger.info("3. The Gmail API is enabled in the project")
-
+            
             for message in messages:
                 try:
-                    email_data = self.service.users().messages().get(
-                        userId='me',
-                        id=message['id'],
-                        format='full'
-                    ).execute()
-
-                    parsed_email = self._parse_email(email_data)
-                    self.logger.info(f"Found email - Subject: {parsed_email['subject']}, "
-                                   f"From: {parsed_email['sender']}, "
-                                   f"Attachments: {len(parsed_email['attachments'])}")
-                    emails.append(parsed_email)
+                    msg = self.get_message(message['id'])
+                    if msg:
+                        # Extract headers
+                        headers = msg['payload']['headers']
+                        subject = next((h['value'] for h in headers if h['name'].lower() == 'subject'), 'No Subject')
+                        sender = next((h['value'] for h in headers if h['name'].lower() == 'from'), 'Unknown')
+                        to = next((h['value'] for h in headers if h['name'].lower() == 'to'), '')
+                        cc = next((h['value'] for h in headers if h['name'].lower() == 'cc'), '')
+                        date = next((h['value'] for h in headers if h['name'].lower() == 'date'), 'Unknown')
+                        
+                        # Extract body
+                        body = self._get_message_body(msg)
+                        
+                        # Check if current user is CC'd
+                        user_email = self.get_authenticated_email()
+                        is_cced = False
+                        if user_email:
+                            cc_list = [addr.strip().lower() for addr in cc.split(',') if addr.strip()]
+                            to_list = [addr.strip().lower() for addr in to.split(',') if addr.strip()]
+                            user_email = user_email.lower()
+                            is_cced = user_email in cc_list
+                            is_to = user_email in to_list
+                        
+                        emails.append({
+                            'id': message['id'],
+                            'thread_id': message['threadId'],
+                            'subject': subject,
+                            'sender': sender,
+                            'to': to,
+                            'cc': cc,
+                            'date': date,
+                            'body': body,
+                            'is_cced': is_cced,
+                            'is_to': is_to
+                        })
+                        
                 except Exception as e:
-                    self.logger.error(f"Error fetching email {message['id']}: {str(e)}")
+                    self.logger.error(f"Error processing message {message['id']}: {str(e)}")
                     continue
-
+            
             return emails
-
+            
         except Exception as e:
-            self.logger.error(f"Error fetching emails: {str(e)}")
+            self.logger.error(f"Error getting unread emails: {str(e)}")
             return []
 
     def _parse_email(self, email_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -333,14 +329,7 @@ class GmailHandler:
 
     def get_authenticated_email(self) -> str:
         """Get the email address of the authenticated user"""
-        try:
-            # Get user profile
-            profile = self.service.users().getProfile(userId='me').execute()
-            return profile['emailAddress']
-        except Exception as e:
-            self.logger.error(f"Error getting authenticated email: {str(e)}")
-            # Return a default email from config if available
-            return self.config.DEFAULT_EMAIL if hasattr(self.config, 'DEFAULT_EMAIL') else None
+        return self.email
 
     def mark_as_read(self, email_id: str) -> bool:
         """Mark email as read"""
@@ -422,4 +411,39 @@ class GmailHandler:
             
         except Exception as e:
             self.logger.error(f"Error adding label {label_name} to message {msg_id}: {str(e)}")
+            return False
+
+    def create_message(self, sender: str, to: str, subject: str, message_html: str) -> Dict[str, Any]:
+        """Create an email message with HTML content"""
+        try:
+            message = MIMEMultipart('alternative')
+            message['to'] = to
+            message['from'] = sender
+            message['subject'] = subject
+            
+            # Attach HTML content
+            message.attach(MIMEText(message_html, 'html'))
+            
+            # Encode message
+            raw = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
+            return {'raw': raw}
+            
+        except Exception as e:
+            self.logger.error(f"Error creating message: {str(e)}")
+            return None
+
+    def send_message(self, message: Dict[str, Any]) -> bool:
+        """Send an email message"""
+        try:
+            if not message:
+                return False
+                
+            self.service.users().messages().send(
+                userId='me',
+                body=message
+            ).execute()
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error sending message: {str(e)}")
             return False

@@ -44,5 +44,10 @@ token.json
 .coverage
 htmlcov/
 
+# Backups
+backups/
+backup_*/
+*.bak
+
 # Mac
 .DS_Store
