@@ -9,30 +9,32 @@ import logging
 from typing import List, Dict, Any, Optional
 from config import Config
 from gmail_auth import GmailAuthenticator
+from google.oauth2.credentials import Credentials
 
 class GmailHandler:
-    def __init__(self, config: Config = None):
-        """Initialize Gmail handler with optional config"""
+    """Handles Gmail API operations"""
+    
+    def __init__(self, credentials=None, config=None):
+        """Initialize Gmail handler"""
         self.logger = logging.getLogger(__name__)
         self.logger.info("Initializing Gmail handler")
         self.config = config or Config.from_env()
-        self.service = None  # Initialize service as None
-
+        
         try:
-            # Initialize the authenticator with required scopes
-            self.authenticator = GmailAuthenticator(self.config.GMAIL_SCOPES)
-
-            # Get credentials using OAuth2 flow
-            credentials = self.authenticator.get_credentials()
-
             if credentials:
-                # Build the Gmail service only if we have valid credentials
                 self.service = build('gmail', 'v1', credentials=credentials)
-                self._verify_connection()
-                self.logger.info("Gmail handler initialized successfully")
             else:
-                self.logger.info("No credentials available - authentication required")
-
+                # Load credentials from token file
+                if os.path.exists('token.json'):
+                    with open('token.json', 'r') as token:
+                        creds_info = eval(token.read())
+                        creds = Credentials.from_authorized_user_info(creds_info, self.config.GMAIL_SCOPES)
+                        self.service = build('gmail', 'v1', credentials=creds)
+                else:
+                    raise ValueError("No credentials provided and no token.json found")
+                    
+            self._verify_connection()
+            self.logger.info("Gmail handler initialized successfully")
         except Exception as e:
             self.logger.error(f"Failed to initialize Gmail handler: {str(e)}")
             raise
@@ -83,15 +85,7 @@ class GmailHandler:
                     date = next((h['value'] for h in headers if h['name'].lower() == 'date'), 'Unknown')
                     
                     # Extract body
-                    if 'parts' in msg['payload']:
-                        parts = msg['payload']['parts']
-                        body = next((
-                            base64.urlsafe_b64decode(p['body']['data']).decode()
-                            for p in parts
-                            if p['mimeType'] == 'text/plain' and 'data' in p['body']
-                        ), 'No plain text body')
-                    else:
-                        body = base64.urlsafe_b64decode(msg['payload']['body']['data']).decode() if 'data' in msg['payload']['body'] else 'No body'
+                    body = self._get_message_body(msg)
                     
                     emails.append({
                         'id': message['id'],
@@ -274,17 +268,68 @@ class GmailHandler:
             self.logger.error(f"Error forwarding message {msg_id}: {str(e)}")
             return False
 
-    def _get_message_body(self, message: Dict[str, Any]) -> str:
-        """Extract message body from Gmail message"""
-        if 'parts' in message['payload']:
-            for part in message['payload']['parts']:
-                if part['mimeType'] == 'text/plain':
-                    return base64.urlsafe_b64decode(
-                        part['body']['data']
-                    ).decode('utf-8')
-        elif 'body' in message['payload'] and 'data' in message['payload']['body']:
-            return base64.urlsafe_b64decode(message['payload']['body']['data']).decode()
-        return "No body content"
+    def _get_message_body(self, message_data: Dict[str, Any]) -> str:
+        """Extract message body from message data"""
+        try:
+            # Extract headers for fallback
+            headers = message_data['payload']['headers']
+            subject = next((h['value'] for h in headers if h['name'].lower() == 'subject'), '')
+            
+            # Try to get body from parts
+            if 'parts' in message_data['payload']:
+                parts = message_data['payload']['parts']
+                for part in parts:
+                    if part.get('mimeType') == 'text/plain':
+                        if 'data' in part.get('body', {}):
+                            return base64.urlsafe_b64decode(part['body']['data']).decode('utf-8')
+            
+            # Try to get body directly
+            if 'body' in message_data['payload'] and 'data' in message_data['payload']['body']:
+                return base64.urlsafe_b64decode(message_data['payload']['body']['data']).decode('utf-8')
+            
+            # Fallback to subject if no body found
+            return f"Subject: {subject}"
+            
+        except Exception as e:
+            self.logger.error(f"Error extracting message body: {str(e)}")
+            return "Error extracting message body"
+
+    def get_message(self, msg_id: str) -> Optional[Dict[str, Any]]:
+        """Get message details by ID"""
+        try:
+            self.logger.info(f"Fetching message: {msg_id}")
+            message = self.service.users().messages().get(
+                userId='me',
+                id=msg_id,
+                format='full'
+            ).execute()
+            return message
+        except Exception as e:
+            self.logger.error(f"Error getting message {msg_id}: {str(e)}")
+            return None
+
+    def list_messages(self, query: str = None, max_results: int = 10) -> List[Dict[str, Any]]:
+        """List messages matching the specified query"""
+        try:
+            self.logger.info(f"Listing messages with query: {query}")
+            
+            # Create the list request
+            request = self.service.users().messages().list(
+                userId='me',
+                maxResults=max_results,
+                q=query if query else None
+            )
+            
+            # Execute the request
+            response = request.execute()
+            messages = response.get('messages', [])
+            
+            self.logger.info(f"Found {len(messages)} messages")
+            return messages
+            
+        except Exception as e:
+            self.logger.error(f"Error listing messages: {str(e)}")
+            return []
 
     def get_authenticated_email(self) -> str:
         """Get the email address of the authenticated user"""
@@ -309,63 +354,6 @@ class GmailHandler:
         except Exception as e:
             self.logger.error(f"Error marking email as read: {str(e)}")
             return False
-
-    def list_messages(self, query: str = None, max_results: int = 10) -> List[Dict[str, Any]]:
-        """
-        List messages matching the specified query.
-        
-        Args:
-            query: Gmail search query (e.g., 'after:2024/01/01')
-            max_results: Maximum number of messages to return
-            
-        Returns:
-            List of message dictionaries with 'id' and 'threadId'
-        """
-        try:
-            self.logger.info(f"Listing messages with query: {query}")
-            
-            # Create the list request
-            request = self.service.users().messages().list(userId='me', maxResults=max_results)
-            if query:
-                request = self.service.users().messages().list(
-                    userId='me',
-                    q=query,
-                    maxResults=max_results
-                )
-            
-            # Execute the request
-            response = request.execute()
-            messages = response.get('messages', [])
-            
-            self.logger.info(f"Found {len(messages)} messages")
-            return messages
-            
-        except Exception as e:
-            self.logger.error(f"Error listing messages: {str(e)}")
-            return []
-
-    def get_message(self, msg_id: str) -> Optional[Dict[str, Any]]:
-        """
-        Get a specific message by ID.
-        
-        Args:
-            msg_id: The ID of the message to retrieve
-            
-        Returns:
-            Message dictionary or None if not found
-        """
-        try:
-            self.logger.info(f"Fetching message: {msg_id}")
-            message = self.service.users().messages().get(
-                userId='me',
-                id=msg_id,
-                format='full'
-            ).execute()
-            return message
-            
-        except Exception as e:
-            self.logger.error(f"Error getting message {msg_id}: {str(e)}")
-            return None
 
     def mark_important(self, msg_id: str) -> bool:
         """Mark a message as important"""

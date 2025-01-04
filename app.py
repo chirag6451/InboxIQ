@@ -13,7 +13,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', os.urandom(24))
 
 # Domain configuration
-DOMAIN = os.environ.get('APP_DOMAIN', 'localhost:8989')
+DOMAIN = os.environ.get('APP_DOMAIN', 'localhost:8989')  
 USE_HTTPS = False  # Force HTTP for local development
 PROTOCOL = 'https' if USE_HTTPS else 'http'
 CALLBACK_URL = f"{PROTOCOL}://{DOMAIN}/oauth2callback"
@@ -132,41 +132,31 @@ def auth():
 
 @app.route('/oauth2callback')
 def oauth2callback():
+    """Handle OAuth2 callback"""
     try:
-        logger.debug(f"Callback received. Session: {session}")
-        logger.debug(f"Request args: {request.args}")
-        
-        code = request.args.get('code')
+        # Get state from request
         state = request.args.get('state')
-        error = request.args.get('error')
-
-        logger.debug(f"Code: {code}")
-        logger.debug(f"State: {state}")
-        logger.debug(f"Error: {error}")
-
-        if error:
-            logger.error(f"OAuth error: {error}")
-            error_message = "Authorization failed. Common issues:\n"
-            error_message += "1. Redirect URI mismatch\n"
-            error_message += "2. Application not properly configured in Google Cloud Console\n"
-            error_message += f"Current error: {error}"
-            return error_message, 400
-
-        if not code or not state:
-            logger.error("Missing code or state")
-            return "Missing authorization code or state", 400
-
+        
+        # Handle the callback
+        creds = authenticator.handle_oauth2_callback(
+            request_url=request.url,
+            state=state
+        )
+        
+        # Try to get user email
         try:
-            authenticator.handle_oauth2_callback(code, state)
-            logger.debug("Successfully handled OAuth callback")
-            return redirect(url_for('index'))
-        except ValueError as e:
-            logger.error(f"ValueError in callback: {str(e)}")
-            return str(e), 400
-
+            handler = GmailHandler(creds)
+            user_email = handler.get_authenticated_email()
+            session['user_email'] = user_email
+        except Exception as e:
+            logger.error(f"Error getting user email: {str(e)}")
+            session['user_email'] = None
+        
+        return redirect(url_for('index'))
+        
     except Exception as e:
         logger.error(f"Error in OAuth callback: {str(e)}")
-        return str(e), 500
+        return f"Error in OAuth callback: {str(e)}", 500
 
 @app.route('/revoke')
 def revoke():
@@ -191,4 +181,4 @@ def revoke():
 if __name__ == '__main__':
     print(f"\nCallback URL configured as: {CALLBACK_URL}")
     print("Make sure this URL is added to the authorized redirect URIs in Google Cloud Console")
-    app.run(host='0.0.0.0', port=8989)
+    app.run(host='0.0.0.0', port=8989)  

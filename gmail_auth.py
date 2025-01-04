@@ -7,6 +7,10 @@ from google.oauth2 import service_account
 import logging
 import json
 from flask import session
+import os
+
+# Allow HTTP for local development
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -26,6 +30,10 @@ class GmailAuthenticator:
         if os.path.exists('credentials.json'):
             with open('credentials.json', 'r') as f:
                 self.client_config = json.load(f)
+                # Remove metadata scope if present as it conflicts with full access
+                if isinstance(self.scopes, list):
+                    self.scopes = [scope for scope in self.scopes 
+                                 if 'gmail.metadata' not in scope]
                 self.logger.info("Loaded OAuth client configuration")
                 self.logger.debug(f"Client config: {self.client_config}")
         else:
@@ -52,13 +60,15 @@ class GmailAuthenticator:
             self.logger.debug("Generating authorization URL")
             auth_url, state = self._flow.authorization_url(
                 access_type='offline',
-                include_granted_scopes='true'
+                include_granted_scopes='false',  # Don't include previously granted scopes
+                prompt='consent'  # Force consent screen to get refresh token
             )
             
-            # Store the state in the session
+            # Store the state and scopes in the session
             session['oauth_state'] = state
+            session['oauth_scopes'] = self.scopes
             self.logger.debug(f"Stored state in session: {state}")
-            self.logger.debug(f"Full session: {session}")
+            self.logger.debug(f"Stored scopes in session: {self.scopes}")
             
             return auth_url
         except Exception as e:
@@ -133,39 +143,42 @@ class GmailAuthenticator:
 
         return creds
 
-    def handle_oauth2_callback(self, code, state):
-        """Handle the OAuth2 callback"""
+    def handle_oauth2_callback(self, request_url: str, state: str = None):
+        """Handle OAuth2 callback and save credentials"""
         try:
-            self.logger.debug("Starting OAuth callback handling")
-            self.logger.debug(f"Received state: {state}")
+            self.logger.debug(f"Handling OAuth callback with state: {state}")
             self.logger.debug(f"Session state: {session.get('oauth_state')}")
             
-            if not self._flow:
-                self.logger.error("OAuth flow not initialized")
-                raise ValueError("OAuth flow not initialized")
+            # Ensure scopes match
+            if 'oauth_scopes' in session:
+                original_scopes = set(session['oauth_scopes'])
+                current_scopes = set(self.scopes)
+                if original_scopes != current_scopes:
+                    self.logger.warning("Scopes have changed during authentication")
+                    self.scopes = list(original_scopes)  # Use original scopes
             
-            stored_state = session.get('oauth_state')
-            if not stored_state:
-                self.logger.error("No state found in session")
-                raise ValueError("No state found in session")
+            # Fetch the token
+            self._flow.fetch_token(authorization_response=request_url)
             
-            if stored_state != state:
-                self.logger.error(f"State mismatch. Expected: {stored_state}, Got: {state}")
-                raise ValueError("Invalid state parameter")
-            
-            self.logger.debug("Fetching token")
-            self._flow.fetch_token(code=code)
+            # Get credentials from flow
             creds = self._flow.credentials
             
-            self.logger.debug("Saving credentials")
-            self._save_credentials(creds)
+            # Save credentials
+            creds_data = {
+                'token': creds.token,
+                'refresh_token': creds.refresh_token,
+                'token_uri': creds.token_uri,
+                'client_id': creds.client_id,
+                'client_secret': creds.client_secret,
+                'scopes': self.scopes  # Use our scopes instead of creds.scopes
+            }
             
-            # Clean up
-            session.pop('oauth_state', None)
-            self._flow = None
-            self.logger.debug("OAuth flow completed successfully")
+            with open('token.json', 'w') as token:
+                token.write(str(creds_data))
+            self.logger.info("Saved credentials to token.json")
             
             return creds
+            
         except Exception as e:
             self.logger.error(f"Error handling OAuth callback: {str(e)}")
             raise

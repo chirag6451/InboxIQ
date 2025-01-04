@@ -16,7 +16,17 @@ from openai import OpenAI
 class EmailProcessor:
     def __init__(self):
         self.config = Config.from_env()
-        self.gmail = GmailHandler(self.config)
+        
+        # Load credentials from token file
+        if os.path.exists('token.json'):
+            with open('token.json', 'r') as token:
+                creds_info = eval(token.read())
+                from google.oauth2.credentials import Credentials
+                creds = Credentials.from_authorized_user_info(creds_info, self.config.GMAIL_SCOPES)
+                self.gmail = GmailHandler(credentials=creds, config=self.config)
+        else:
+            raise ValueError("No token.json found. Please authenticate first.")
+            
         self.classifier = EmailClassifier(self.config)
         self.logger = logging.getLogger(__name__)
         self.summary = {

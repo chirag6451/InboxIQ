@@ -14,10 +14,13 @@ class Config:
     # Gmail API configuration
     GMAIL_SCOPES: List[str] = field(
         default_factory=lambda: [
-            'https://www.googleapis.com/auth/gmail.modify',
-            'https://www.googleapis.com/auth/gmail.readonly',
-            'https://www.googleapis.com/auth/gmail.labels',
-            'https://www.googleapis.com/auth/gmail.send'
+            'https://www.googleapis.com/auth/gmail.modify',  # Read/write/trash/manage emails
+            'https://www.googleapis.com/auth/gmail.readonly',  # Read-only access
+            'https://www.googleapis.com/auth/gmail.labels',  # Manage labels
+            'https://www.googleapis.com/auth/gmail.send',  # Send emails
+            'https://www.googleapis.com/auth/gmail.compose',  # Create/draft emails
+            'https://www.googleapis.com/auth/calendar',  # Full calendar access
+            'https://www.googleapis.com/auth/calendar.events'  # Manage calendar events
         ],
         metadata={'help': 'Gmail API scopes required for the application'}
     )
@@ -293,7 +296,10 @@ class Config:
             'https://www.googleapis.com/auth/gmail.modify',
             'https://www.googleapis.com/auth/gmail.readonly',
             'https://www.googleapis.com/auth/gmail.labels',
-            'https://www.googleapis.com/auth/gmail.send'
+            'https://www.googleapis.com/auth/gmail.send',
+            'https://www.googleapis.com/auth/gmail.compose',
+            'https://www.googleapis.com/auth/calendar',
+            'https://www.googleapis.com/auth/calendar.events'
         ]
 
     def _setup_directories(self):
