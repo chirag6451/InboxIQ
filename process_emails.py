@@ -20,7 +20,7 @@ class EmailProcessor:
         """Initialize the email processor with handlers and config"""
         self.gmail = gmail_handler
         self.config = config
-        self.calendar = CalendarHandler(gmail_handler.credentials)
+        self.calendar = CalendarHandler(gmail_handler.credentials, config)
         self.classifier = EmailClassifier(config)
         self.logger = logging.getLogger(__name__)
         self.summary = {
@@ -29,6 +29,7 @@ class EmailProcessor:
             'category_stats': defaultdict(int),
             'forwarding_details': [],
             'calendar_events': [],
+            'action_items': [],
             'start_time': datetime.now()
         }
         self.openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
@@ -42,6 +43,10 @@ class EmailProcessor:
                 self.logger.error("Could not determine authenticated email")
                 return
 
+            # Reset calendar handler's last event time and slot at the start of processing
+            self.calendar.last_event_time = None
+            self.calendar.current_slot = None
+            
             # Get unread messages
             messages = self.gmail.list_messages(query='is:unread', max_results=max_emails)
             self.summary['total_emails_processed'] = len(messages)
@@ -132,6 +137,16 @@ class EmailProcessor:
                         'action_items': classification.get('action_items', []),
                         'forwarded_to': forwarded_to
                     })
+
+                    # Store action items in summary if present
+                    if classification.get('action_items'):
+                        if 'action_items' not in self.summary:
+                            self.summary['action_items'] = []
+                        self.summary['action_items'].append({
+                            'sender': sender,
+                            'subject': subject,
+                            'items': classification['action_items']
+                        })
 
                     # Create calendar reminder if needed
                     if classification.get('categories'):
@@ -474,7 +489,7 @@ class EmailProcessor:
             if detail.get('action_items'):
                 action_items.extend(detail['action_items'])
         
-        if not action_items:
+        if not self.summary.get('action_items'):
             return ""
             
         items = [
@@ -483,13 +498,17 @@ class EmailProcessor:
             '<ul style="list-style-type: none; padding-left: 0;">'
         ]
         
-        for item in action_items:
-            items.append(f"""
-                <li style="margin-bottom: 10px; padding-left: 20px; position: relative;">
-                    <span style="position: absolute; left: 0; color: #d35400;">•</span>
-                    {item}
-                </li>
-            """)
+        for email_actions in self.summary['action_items']:
+            items.extend([
+                f"<li style='margin-bottom: 10px; padding-left: 20px; position: relative;'>",
+                f"<span style='position: absolute; left: 0; color: #d35400;'>•</span>",
+                f"<strong>From:</strong> {email_actions['sender']}",
+                f"<br><strong>Subject:</strong> {email_actions['subject']}",
+                "<br>Action Items:"
+            ])
+            for item in email_actions['items']:
+                items.append(f"<li style='margin-left: 20px;'>{item}</li>")
+            items.append("</li>")
         
         items.extend(['</ul>', '</div>'])
         return '\n'.join(items)

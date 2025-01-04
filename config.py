@@ -23,6 +23,18 @@ class Config:
         ]
     )
     
+    # Calendar settings for reminders
+    CALENDER_REMINDER_SETTINGS: Dict[str, Any] = field(
+        default_factory=lambda: {
+            'start_time': '09:00',
+            'end_time': '17:00',
+            'reminder_advance': 45,  # minutes
+            'default_duration': 60,  # minutes
+            'reminder_slot_duration': 30,
+            'reminder_color': 'red',
+            'notification': True
+        }
+    )
     # User Configuration
     USER_DETAILS: Dict[str, str] = field(
         default_factory=lambda: {
@@ -46,7 +58,7 @@ class Config:
                 'cc_to': ['manager@company.com'],
                 'calendar_settings': {
                     'create_reminder': True,
-                    'reminder_advance': 30,  # minutes
+                    'reminder_advance': 45,  # minutes
                     'default_duration': 60,  # minutes
                     'color': 'red',
                     'notification': True,
@@ -60,7 +72,7 @@ class Config:
                 'target_emails': ['chirag@indapoint.com'],
                 'calendar_settings': {
                     'create_reminder': True,
-                    'reminder_advance': 60,
+                    'reminder_advance': 30,
                     'default_duration': 45,
                     'color': 'yellow',
                     'notification': True,
@@ -74,11 +86,11 @@ class Config:
                 'target_emails': ['chirag@indapoint.com'],
                 'calendar_settings': {
                     'create_reminder': True,
-                    'reminder_advance': 120,
+                    'reminder_advance': 60,
                     'default_duration': 30,
                     'color': 'blue',
                     'notification': True,
-                    'calendar_priorities': ['urgent'],
+                    'calendar_priorities': ['urgent', 'important'],
                     'timezone': 'Asia/Kolkata'
                 }
             },
@@ -88,7 +100,7 @@ class Config:
                 'target_emails': ['chirag@indapoint.com'],
                 'calendar_settings': {
                     'create_reminder': True,
-                    'reminder_advance': 45,
+                    'reminder_advance': 20,
                     'default_duration': 30,
                     'color': 'green',
                     'notification': True,
