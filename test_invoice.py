@@ -6,19 +6,19 @@ def test_invoice_detection():
     sample_invoice = """
     Tax Invoice
     APPLE ACCOUNT
-    tanvi79@icloud.com
+    user@example.com
     ORDER ID: MLV2SXN60S
     DOCUMENT NO: 192894861418
     INVOICE DATE: 31 Dec 2024
     SEQUENCE NO: 3-431916660
 
     BILLED TO:
-    Chirag Ahmedabadi
-    IndaPoint Technologies Pvt. Ltd., 301 Senate Square
-    Opp. Yash complex
-    Gotri road
-    Baroda, GJ 390021
-    IND
+    John Smith
+    Example Corp., 123 Business Plaza
+    Suite 301
+    Main Street
+    New York, NY 10001
+    USA
 
     Items:
     Apple Music Family Subscription (Monthly)
@@ -49,11 +49,6 @@ def test_invoice_detection():
         total_amount = invoice_data.get('total_amount', {})
         print(f"Total Amount: {total_amount.get('amount')} {total_amount.get('currency')}")
         print(f"Invoice Date: {invoice_data.get('date')}")
-
-        vendor = invoice_data.get('vendor', {})
-        print(f"Vendor: {vendor.get('name')}")
-    else:
-        print("No invoice data detected")
 
     # Check if it should be forwarded
     should_forward = analyzer.should_forward(result)

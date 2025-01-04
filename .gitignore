@@ -54,11 +54,11 @@ backup_*/
 .AppleDouble
 .LSOverride
 
-# Generated reports and attachments
-email_report_*.txt
-email_report_*.html
-attachments/
+# Generated reports
+email_report_*
+report_*.html
+report_*.txt
 
-# Email processing artifacts
-email_processing.log
-invoice_detection.log
+# Test outputs
+test_outputs/
+*.test.out

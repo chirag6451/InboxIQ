@@ -128,7 +128,7 @@ Key Points:
             try:
                 # Get target email from config
                 category_config = config.EMAIL_CATEGORIES[case['category']]
-                to_email = category_config['target_emails'][0] if category_config['target_emails'] else 'chirag@indapoint.com'
+                to_email = category_config['target_emails'][0] if category_config['target_emails'] else 'user@example.com'
                 
                 # Create and send email
                 message = create_test_email(
