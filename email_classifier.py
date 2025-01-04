@@ -182,43 +182,63 @@ For alerts vs notifications:
                         for p, emails in cat_config['target_emails'].items()
                     }
                     
+                    # First try project-specific routing
+                    project_matched = False
                     for project in classification.project_names:
                         normalized_project = self._normalize_project_name(project)
                         if normalized_project in normalized_config_projects:
+                            project_matched = True
                             for email in normalized_config_projects[normalized_project]:
                                 targets.append({
                                     'email': email,
                                     'priority': classification.priority
                                 })
-                else:
-                    # Handle non-project categories
-                    if isinstance(cat_config['target_emails'], list):
-                        for email in cat_config['target_emails']:
+                    
+                    # If no project matches, use default routing
+                    if not project_matched and 'default' in cat_config['target_emails']:
+                        for email in cat_config['target_emails']['default']:
                             targets.append({
                                 'email': email,
                                 'priority': classification.priority
                             })
-                    elif isinstance(cat_config['target_emails'], str):
+                else:
+                    # Handle non-project categories
+                    target_emails = cat_config.get('target_emails', [])
+                    if isinstance(target_emails, list):
+                        for email in target_emails:
+                            targets.append({
+                                'email': email,
+                                'priority': classification.priority
+                            })
+                    elif isinstance(target_emails, str):
                         targets.append({
-                            'email': cat_config['target_emails'],
+                            'email': target_emails,
                             'priority': classification.priority
                         })
+                    elif isinstance(target_emails, dict):
+                        # Handle dictionary of target emails (e.g., for subcategories)
+                        for emails in target_emails.values():
+                            if isinstance(emails, list):
+                                for email in emails:
+                                    targets.append({
+                                        'email': email,
+                                        'priority': classification.priority
+                                    })
+                            elif isinstance(emails, str):
+                                targets.append({
+                                    'email': emails,
+                                    'priority': classification.priority
+                                })
         
-        # Remove duplicates while preserving priority
-        unique_targets = {}
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_targets = []
         for target in targets:
-            email = target['email']
-            priority = target['priority']
-            
-            # Keep highest priority for duplicate emails
-            if email not in unique_targets or (
-                priority == 'urgent' or 
-                (priority == 'high' and unique_targets[email]['priority'] in ['normal', 'low']) or
-                (priority == 'normal' and unique_targets[email]['priority'] == 'low')
-            ):
-                unique_targets[email] = target
+            if target['email'] not in seen:
+                seen.add(target['email'])
+                unique_targets.append(target)
         
-        return list(unique_targets.values())
+        return unique_targets
 
     def should_mark_important(self, classification: EmailClassification) -> bool:
         """Determine if email should be marked as important"""

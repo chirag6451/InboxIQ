@@ -1,7 +1,7 @@
 import os
 import re
 from dataclasses import dataclass, field
-from typing import List, Set, Optional, Dict
+from typing import List, Set, Optional, Dict, Any
 from dotenv import load_dotenv
 
 # Load environment variables at module level
@@ -24,8 +24,12 @@ class Config:
 
     # OpenAI configuration
     OPENAI_API_KEY: str = field(
-        default=None,
+        default_factory=lambda: os.getenv('OPENAI_API_KEY', ''),
         metadata={'help': 'OpenAI API key for invoice analysis'}
+    )
+    OPENAI_MODEL: str = field(
+        default_factory=lambda: os.getenv('OPENAI_MODEL', 'gpt-4'),
+        metadata={'help': 'OpenAI model for invoice analysis'}
     )
 
     # Rate limiting (requests per minute)
@@ -154,6 +158,30 @@ class Config:
             }
         },
         metadata={'help': 'Configuration for different email categories and their routing'}
+    )
+
+    # User Configuration
+    USER_DETAILS: Dict[str, str] = field(
+        default_factory=lambda: {
+            'name': 'Chirag',  # User's first name
+            'full_name': 'Chirag Ahmed Abadi',  # User's full name
+            'company': 'Your Company Name',  # Company name
+            'position': 'Your Position',  # Job position
+            'timezone': 'Asia/Kolkata',  # User's timezone
+            'preferred_language': 'English',  # Preferred language for communications
+            'email_signature': 'Best regards,\nChirag Ahmed Abadi\nYour Position | Your Company Name'  # Email signature
+        }
+    )
+
+    # Email Report Configuration
+    REPORT_SETTINGS: Dict[str, Any] = field(
+        default_factory=lambda: {
+            'report_frequency': 'daily',  # How often to send reports (daily, hourly)
+            'include_stats': True,  # Include statistics in report
+            'include_action_items': True,  # Include action items
+            'include_forwarded_summary': True,  # Include forwarded emails summary
+            'max_items_per_section': 10,  # Maximum items to show in each section
+        }
     )
 
     def __post_init__(self):
