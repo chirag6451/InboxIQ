@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Email Processing Report - {{ date }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 40px;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .summary-box {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+        }
+        .chart-container {
+            margin: 20px 0;
+            text-align: center;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .priority-urgent {
+            color: #d32f2f;
+            font-weight: bold;
+        }
+        .priority-high {
+            color: #f57c00;
+            font-weight: bold;
+        }
+        .priority-normal {
+            color: #388e3c;
+        }
+        .priority-low {
+            color: #757575;
+        }
+        .action-items {
+            background: #fff3e0;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .alert {
+            background: #ffebee;
+            padding: 10px;
+            border-radius: 3px;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Email Processing Report</h1>
+        <p>Generated on {{ date }}</p>
+    </div>
+
+    <div class="summary-box">
+        <h2>Summary Statistics</h2>
+        <table>
+            <tr>
+                <th>Metric</th>
+                <th>Value</th>
+            </tr>
+            <tr>
+                <td>Total Emails Processed</td>
+                <td>{{ summary.total_emails_processed }}</td>
+            </tr>
+            <tr>
+                <td>Emails Forwarded</td>
+                <td>{{ summary.emails_forwarded }}</td>
+            </tr>
+            <tr>
+                <td>Spam Detected</td>
+                <td>{{ summary.category_stats.get('spam', 0) }}</td>
+            </tr>
+            <tr>
+                <td>Alerts</td>
+                <td>{{ summary.category_stats.get('alert', 0) }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="chart-container">
+        <h2>Category Distribution</h2>
+        {{ category_chart | safe }}
+    </div>
+
+    <div class="chart-container">
+        <h2>Priority Distribution</h2>
+        {{ priority_chart | safe }}
+    </div>
+
+    <h2>Processed Emails</h2>
+    <table>
+        <tr>
+            <th>Subject</th>
+            <th>From</th>
+            <th>Categories</th>
+            <th>Priority</th>
+            <th>Forwarded To</th>
+        </tr>
+        {% for detail in summary.forwarding_details %}
+        <tr>
+            <td>{{ detail.subject }}</td>
+            <td>{{ detail.from }}</td>
+            <td>{{ detail.categories | join(', ') }}</td>
+            <td class="priority-{{ detail.priority }}">{{ detail.priority }}</td>
+            <td>{{ detail.forwarded_to }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <div class="action-items">
+        <h2>Action Items</h2>
+        {% for detail in summary.forwarding_details %}
+            {% if detail.action_items %}
+                <div class="alert">
+                    <h3>{{ detail.subject }}</h3>
+                    <ul>
+                        {% for item in detail.action_items %}
+                            <li>{{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <div class="chart-container">
+        <h2>Email Timeline</h2>
+        {{ timeline_chart | safe }}
+    </div>
+</body>
+</html>

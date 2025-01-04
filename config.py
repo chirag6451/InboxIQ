@@ -1,7 +1,7 @@
 import os
 import re
 from dataclasses import dataclass, field
-from typing import List, Set, Optional
+from typing import List, Set, Optional, Dict
 from dotenv import load_dotenv
 
 # Load environment variables at module level
@@ -79,6 +79,83 @@ class Config:
         metadata={'help': 'Maximum allowed attachment size in bytes'}
     )
 
+    # Email categories configuration
+    EMAIL_CATEGORIES: Dict[str, dict] = field(
+        default_factory=lambda: {
+            'sales': {
+                'target_emails': ['ahmedabadi@gmail.com'],
+                'keywords': ['inquiry', 'quote', 'product', 'pricing', 'sales'],
+                'priority': 'normal',
+                'enabled': True
+            },
+            'accounts': {
+                'target_emails': ['ahmedabadi@gmail.com'],
+                'keywords': ['payment', 'invoice', 'bill', 'accounting', 'finance'],
+                'priority': 'high',
+                'enabled': True
+            },
+            'support': {
+                'target_emails': ['ahmedabadi@gmail.com'],
+                'keywords': ['help', 'support', 'issue', 'problem', 'assistance'],
+                'priority': 'normal',
+                'enabled': True
+            },
+            'critical': {
+                'target_emails': ['ahmedabadi@gmail.com'],
+                'keywords': ['urgent', 'complaint', 'escalation', 'serious', 'critical'],
+                'priority': 'urgent',
+                'enabled': True
+            },
+            'projects': {
+                'target_emails': {
+                    'atlas': ['ahmedabadi@gmail.com'],
+                    'phoenix': ['ahmedabadi@gmail.com'],
+                    'default': ['ahmedabadi@gmail.com']
+                },
+                'keywords': ['project', 'milestone', 'deadline', 'development'],
+                'priority': 'high',
+                'enabled': True
+            },
+            'spam': {
+                'target_emails': ['ahmedabadi@gmail.com'],
+                'keywords': [
+                    'viagra', 'lottery', 'winner', 'inheritance', 'prince', 'bank transfer',
+                    'cryptocurrency', 'investment opportunity', 'make money fast', 'work from home'
+                ],
+                'priority': 'low',
+                'enabled': False  # Disabled by default to ignore spam
+            },
+            'sales_pitch': {
+                'target_emails': ['ahmedabadi@gmail.com'],
+                'keywords': [
+                    'discount', 'special offer', 'limited time', 'buy now', 'great deal',
+                    'exclusive offer', 'promotional', 'sale ends', 'best price'
+                ],
+                'priority': 'low',
+                'enabled': True
+            },
+            'alert': {
+                'target_emails': ['ahmedabadi@gmail.com'],
+                'keywords': [
+                    'alert', 'warning', 'attention required', 'action needed', 'important notice',
+                    'security alert', 'system notification', 'immediate action'
+                ],
+                'priority': 'high',
+                'enabled': True
+            },
+            'notification': {
+                'target_emails': ['ahmedabadi@gmail.com'],
+                'keywords': [
+                    'notification', 'fyi', 'for your information', 'update', 'status update',
+                    'announcement', 'newsletter', 'digest'
+                ],
+                'priority': 'normal',
+                'enabled': True
+            }
+        },
+        metadata={'help': 'Configuration for different email categories and their routing'}
+    )
+
     def __post_init__(self):
         """Post initialization validation and setup"""
         self._load_environment_variables()
@@ -88,6 +165,7 @@ class Config:
         self._validate_paths()
         self._validate_rate_limits()
         self._validate_confidence_threshold()
+        self._validate_email_categories()
         self._setup_directories()
 
     def _load_environment_variables(self):
@@ -101,6 +179,26 @@ class Config:
         
         self.SOURCE_EMAILS = [email.strip() for email in source_emails.split(',') if email.strip()]
         self.TARGET_EMAILS = [email.strip() for email in target_emails.split(',') if email.strip()]
+
+        # Load email categories configuration from environment variables
+        for category in self.EMAIL_CATEGORIES:
+            env_prefix = f'EMAIL_CATEGORIES__{category.upper()}__TARGET_EMAILS'
+            
+            # Handle project-specific configuration
+            if category == 'projects':
+                for key in os.environ:
+                    if key.startswith(env_prefix + '__'):
+                        project = key[len(env_prefix + '__'):].lower()
+                        emails = os.getenv(key)
+                        if emails:
+                            if not isinstance(self.EMAIL_CATEGORIES[category]['target_emails'], dict):
+                                self.EMAIL_CATEGORIES[category]['target_emails'] = {}
+                            self.EMAIL_CATEGORIES[category]['target_emails'][project] = emails.split(',')
+            else:
+                # Handle regular categories
+                emails = os.getenv(env_prefix)
+                if emails:
+                    self.EMAIL_CATEGORIES[category]['target_emails'] = emails.split(',')
 
     def _validate_api_keys(self):
         """Validate required API keys"""
@@ -143,6 +241,22 @@ class Config:
         """Validate confidence threshold is between 0 and 1"""
         if not 0 <= self.MIN_CONFIDENCE_THRESHOLD <= 1:
             raise ValueError("MIN_CONFIDENCE_THRESHOLD must be between 0 and 1")
+
+    def _validate_email_categories(self):
+        """Validate email categories configuration"""
+        if not isinstance(self.EMAIL_CATEGORIES, dict):
+            raise ValueError("EMAIL_CATEGORIES must be a dictionary")
+        
+        for category, config in self.EMAIL_CATEGORIES.items():
+            if not isinstance(config, dict):
+                raise ValueError(f"Category {category} configuration must be a dictionary")
+            
+            required_keys = {'target_emails', 'keywords', 'priority', 'enabled'}
+            if not all(key in config for key in required_keys):
+                raise ValueError(f"Category {category} missing required configuration keys")
+            
+            if config['priority'] not in {'normal', 'high', 'urgent', 'low'}:
+                raise ValueError(f"Invalid priority level for category {category}")
 
     @classmethod
     def get_gmail_scopes(cls) -> List[str]:

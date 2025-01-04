@@ -1,151 +1,90 @@
-# Gmail Invoice Scanner
+# AI-Email-Classifier
 
-A Python application that automatically scans Gmail inboxes for invoices, extracts relevant information, and provides easy management of the extracted data.
+An intelligent email classification and management system that uses AI to analyze, categorize, and forward emails based on their content and priority.
 
-## Setup Guide
+## Features
 
-### 1. Prerequisites
-- Python 3.8 or higher
-- A Google Cloud Project with Gmail API enabled
-- OAuth 2.0 credentials from Google Cloud Console
+- **AI-Powered Email Analysis**: Uses OpenAI's GPT models to understand email content
+- **Smart Categorization**: Automatically categorizes emails into predefined categories
+- **Priority Assignment**: Assigns priority levels (Urgent, High, Normal, Low)
+- **Action Item Detection**: Identifies and extracts action items from emails
+- **Email Forwarding**: Forwards emails to appropriate recipients based on categories
+- **Detailed Reporting**: Generates comprehensive reports including:
+  - Email summaries
+  - Category statistics
+  - Consolidated action items
+  - Processing statistics
 
-### 2. Initial Setup
+## Requirements
+
+- Python 3.10+
+- Gmail API credentials
+- OpenAI API key
+
+## Installation
 
 1. Clone the repository:
-```bash
-git clone <repository-url>
-cd invoice-emails
-```
+   ```bash
+   git clone git@github.com:chirag6451/AI-Email-Classifier.git
+   cd AI-Email-Classifier
+   ```
 
 2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Set up environment variables:
+   ```bash
+   export OPENAI_API_KEY="your-api-key"
+   export OPENAI_MODEL="gpt-3.5-turbo"
+   ```
+
+4. Configure Gmail API credentials:
+   - Place your `credentials.json` in the project root directory
+   - Run the application once to generate token.json
+
+## Usage
+
+Run the email processor:
 ```bash
-pip install -r requirements.txt
+python process_emails.py
 ```
 
-3. Set up Google Cloud Project:
-   - Go to [Google Cloud Console](https://console.cloud.google.com)
-   - Create a new project or select an existing one
-   - Enable the Gmail API
-   - Create OAuth 2.0 credentials (Web application type)
-   - Add `http://localhost:8989/oauth2callback` to authorized redirect URIs
-   - Download the credentials and save as `credentials.json` in the project root
+The system will:
+1. Fetch unread emails from your Gmail account
+2. Analyze and categorize each email
+3. Forward emails based on configured rules
+4. Generate a detailed report
 
-### 3. Configuration
+## Configuration
 
-1. Copy `.env.example` to `.env`:
+Edit `config.py` to customize:
+- Email categories and their descriptions
+- Priority levels
+- Forwarding rules
+- Spam detection settings
+
+## Project Structure
+
+- `process_emails.py`: Main entry point
+- `email_analyzer.py`: Email content analysis
+- `email_classifier.py`: AI-based classification
+- `gmail_handler.py`: Gmail API interactions
+- `report_generator.py`: Report generation
+- `config.py`: System configuration
+
+## Testing
+
+Run the test suite:
 ```bash
-cp .env.example .env
+python -m pytest tests/
 ```
-
-2. Configure the `.env` file:
-```ini
-# Gmail Configuration
-APP_DOMAIN=localhost:8989  # Your domain (use localhost:8989 for local development)
-USE_HTTPS=false  # Set to true in production
-
-# OpenAI Configuration (for invoice processing)
-OPENAI_API_KEY=your-key-here
-OPENAI_MODEL=gpt-4  # or another compatible model
-
-# Flask Configuration
-FLASK_SECRET_KEY=your-random-secret-key  # Generate a secure random key
-FLASK_ENV=development  # Set to production in production
-
-# Email Configuration
-SOURCE_EMAILS=email1@domain.com,email2@domain.com  # Emails to monitor for invoices
-TARGET_EMAILS=target1@domain.com,target2@domain.com  # Emails to receive forwarded invoices
-
-# Invoice Scanner Configuration
-SCAN_INTERVAL_MINUTES=30
-MAX_EMAILS_PER_SCAN=100
-ATTACHMENT_TYPES=pdf,PDF
-SAVE_ATTACHMENTS_DIR=attachments
-```
-
-3. Configure `config.py`:
-- Adjust the Gmail API scopes if needed
-- Modify invoice processing settings
-- Configure logging settings
-
-### 4. Authentication
-
-1. Start the web server:
-```bash
-python app.py
-```
-
-2. Visit `http://localhost:8989`
-3. Click "Authenticate with Gmail" and follow the Google OAuth flow
-4. Your Gmail account will now be authenticated for invoice scanning
-
-### 5. Running the Invoice Scanner
-
-#### Manual Execution
-Run the invoice scanner manually:
-```bash
-python check_invoice_emails.py
-```
-
-#### Automated Scanning (Cron Setup)
-
-1. Create a cron job (Linux/Mac):
-```bash
-crontab -e
-```
-
-2. Add the following line to run every 30 minutes:
-```
-*/30 * * * * cd /path/to/invoice-emails && /usr/bin/python3 check_invoice_emails.py >> /path/to/invoice-emails/cron.log 2>&1
-```
-
-For Windows, use Task Scheduler:
-1. Open Task Scheduler
-2. Create Basic Task
-3. Set trigger to run every 30 minutes
-4. Action: Start a program
-5. Program: python.exe
-6. Arguments: check_invoice_emails.py
-7. Start in: C:\path\to\invoice-emails
-
-### 6. Monitoring and Maintenance
-
-#### Logs
-- Check `invoice_scanner.log` for detailed operation logs
-- For cron jobs, check `cron.log`
-
-#### Common Issues
-1. Authentication errors:
-   - Ensure credentials.json is properly configured
-   - Try re-authenticating through the web interface
-
-2. Email scanning issues:
-   - Verify SOURCE_EMAILS and TARGET_EMAILS in .env
-   - Check SCAN_INTERVAL_MINUTES and MAX_EMAILS_PER_SCAN settings
-
-3. Invoice processing errors:
-   - Verify OPENAI_API_KEY and OPENAI_MODEL settings
-   - Check ATTACHMENT_TYPES configuration
-
-### 7. Security Best Practices
-
-1. In production:
-   - Set USE_HTTPS=true
-   - Use a strong FLASK_SECRET_KEY
-   - Set FLASK_ENV=production
-   - Store credentials securely
-   - Use environment variables for sensitive data
-
-2. File permissions:
-   - Restrict access to credentials.json and token.json
-   - Secure the attachments directory
-
-## Contributing
-
-Please read CONTRIBUTING.md for details on our code of conduct and the process for submitting pull requests.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT License
 
-unzip gmail_invoice_scanner.zip
-cd gmail_invoice_scanner
+## Author
+
+Chirag Ahmedabadi

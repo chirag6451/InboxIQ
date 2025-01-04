@@ -1,37 +1,48 @@
-# Environment and configuration
-.env
-credentials.json
-token.json
-*.pyc
+# Python
 __pycache__/
-.env.*
-!.env.example
-!credentials.json.example
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# Logs and data
-*.log
-attachments/
-emails_*.json
-cron.log
-invoice_scanner.log
-
-# Virtual environment
+# Virtual Environment
 venv/
+ENV/
 env/
-.venv/
-.env/
 
-# IDE files
-.vscode/
+# IDE
 .idea/
+.vscode/
 *.swp
 *.swo
 
-# OS files
-.DS_Store
-Thumbs.db
+# Credentials and tokens
+credentials.json
+token.json
+.env
 
-# Sensitive data
-config_prod.py
-secrets/
-private/
+# Logs
+*.log
+
+# Test cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Mac
+.DS_Store

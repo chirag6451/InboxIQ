@@ -223,41 +223,79 @@ class GmailHandler:
             self.logger.error(f"Error downloading attachment: {str(e)}")
             return None
 
-    def forward_email(self, to_address: str, subject: str, body: str, 
-                     attachments: List[Dict[str, bytes]] = None) -> bool:
-        """Forward email with attachments"""
+    def forward_email(self, msg_id: Optional[str], to_email: str) -> bool:
+        """Forward an email to specified address"""
         try:
+            if not msg_id:
+                self.logger.error("Message ID is required for forwarding")
+                return False
+                
+            # Get the original message
+            original = self.get_message(msg_id)
+            if not original:
+                return False
+            
+            # Extract headers
+            headers = original['payload']['headers']
+            subject = next((h['value'] for h in headers if h['name'].lower() == 'subject'), 'No Subject')
+            from_email = next((h['value'] for h in headers if h['name'].lower() == 'from'), 'Unknown')
+            date = next((h['value'] for h in headers if h['name'].lower() == 'date'), '')
+            
+            # Create forwarding message
             message = MIMEMultipart()
-            message['to'] = to_address
-            message['subject'] = subject
-
-            message.attach(MIMEText(body, 'plain'))
-
-            if attachments:
-                for attachment in attachments:
-                    part = MIMEBase('application', 'octet-stream')
-                    part.set_payload(attachment['content'])
-                    encoders.encode_base64(part)
-                    part.add_header(
-                        'Content-Disposition',
-                        f'attachment; filename= {attachment["filename"]}'
-                    )
-                    message.attach(part)
-
-            raw_message = base64.urlsafe_b64encode(
-                message.as_bytes()
-            ).decode('utf-8')
-
+            message['to'] = to_email
+            message['subject'] = f"Fwd: {subject}"
+            
+            # Create forwarding header
+            forward_msg = [
+                "---------- Forwarded message ----------",
+                f"From: {from_email}",
+                f"Date: {date}",
+                f"Subject: {subject}",
+                f"To: {to_email}",
+                "",
+                self._get_message_body(original)
+            ]
+            
+            # Add the forwarded content
+            message.attach(MIMEText('\n'.join(forward_msg), 'plain'))
+            
+            # Encode and send
+            raw = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
             self.service.users().messages().send(
                 userId='me',
-                body={'raw': raw_message}
+                body={'raw': raw}
             ).execute()
-
+            
+            self.logger.info(f"Successfully forwarded message {msg_id} to {to_email}")
             return True
-
+            
         except Exception as e:
-            self.logger.error(f"Error forwarding email: {str(e)}")
+            self.logger.error(f"Error forwarding message {msg_id}: {str(e)}")
             return False
+
+    def _get_message_body(self, message: Dict[str, Any]) -> str:
+        """Extract message body from Gmail message"""
+        if 'parts' in message['payload']:
+            for part in message['payload']['parts']:
+                if part['mimeType'] == 'text/plain':
+                    return base64.urlsafe_b64decode(
+                        part['body']['data']
+                    ).decode('utf-8')
+        elif 'body' in message['payload'] and 'data' in message['payload']['body']:
+            return base64.urlsafe_b64decode(message['payload']['body']['data']).decode()
+        return "No body content"
+
+    def get_authenticated_email(self) -> str:
+        """Get the email address of the authenticated user"""
+        try:
+            # Get user profile
+            profile = self.service.users().getProfile(userId='me').execute()
+            return profile['emailAddress']
+        except Exception as e:
+            self.logger.error(f"Error getting authenticated email: {str(e)}")
+            # Return a default email from config if available
+            return self.config.DEFAULT_EMAIL if hasattr(self.config, 'DEFAULT_EMAIL') else None
 
     def mark_as_read(self, email_id: str) -> bool:
         """Mark email as read"""
@@ -270,4 +308,130 @@ class GmailHandler:
             return True
         except Exception as e:
             self.logger.error(f"Error marking email as read: {str(e)}")
+            return False
+
+    def list_messages(self, query: str = None, max_results: int = 10) -> List[Dict[str, Any]]:
+        """
+        List messages matching the specified query.
+        
+        Args:
+            query: Gmail search query (e.g., 'after:2024/01/01')
+            max_results: Maximum number of messages to return
+            
+        Returns:
+            List of message dictionaries with 'id' and 'threadId'
+        """
+        try:
+            self.logger.info(f"Listing messages with query: {query}")
+            
+            # Create the list request
+            request = self.service.users().messages().list(userId='me', maxResults=max_results)
+            if query:
+                request = self.service.users().messages().list(
+                    userId='me',
+                    q=query,
+                    maxResults=max_results
+                )
+            
+            # Execute the request
+            response = request.execute()
+            messages = response.get('messages', [])
+            
+            self.logger.info(f"Found {len(messages)} messages")
+            return messages
+            
+        except Exception as e:
+            self.logger.error(f"Error listing messages: {str(e)}")
+            return []
+
+    def get_message(self, msg_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get a specific message by ID.
+        
+        Args:
+            msg_id: The ID of the message to retrieve
+            
+        Returns:
+            Message dictionary or None if not found
+        """
+        try:
+            self.logger.info(f"Fetching message: {msg_id}")
+            message = self.service.users().messages().get(
+                userId='me',
+                id=msg_id,
+                format='full'
+            ).execute()
+            return message
+            
+        except Exception as e:
+            self.logger.error(f"Error getting message {msg_id}: {str(e)}")
+            return None
+
+    def mark_important(self, msg_id: str) -> bool:
+        """Mark a message as important"""
+        try:
+            self.service.users().messages().modify(
+                userId='me',
+                id=msg_id,
+                body={'addLabelIds': ['IMPORTANT']}
+            ).execute()
+            self.logger.info(f"Marked message {msg_id} as important")
+            return True
+        except Exception as e:
+            self.logger.error(f"Error marking message {msg_id} as important: {str(e)}")
+            return False
+
+    def _create_label(self, label_name: str) -> Optional[str]:
+        """Create a Gmail label if it doesn't exist"""
+        try:
+            # First check if label already exists
+            try:
+                results = self.service.users().labels().list(userId='me').execute()
+                labels = results.get('labels', [])
+                
+                # Check for existing label (case insensitive)
+                for label in labels:
+                    if label['name'].lower() == label_name.lower():
+                        return label['id']
+            except Exception as e:
+                self.logger.error(f"Error checking existing labels: {str(e)}")
+                return None
+
+            # Create new label if it doesn't exist
+            label = self.service.users().labels().create(
+                userId='me',
+                body={
+                    'name': label_name,
+                    'labelListVisibility': 'labelShow',
+                    'messageListVisibility': 'show'
+                }
+            ).execute()
+            
+            self.logger.info(f"Created new label: {label_name}")
+            return label['id']
+            
+        except Exception as e:
+            self.logger.error(f"Error creating label {label_name}: {str(e)}")
+            return None
+
+    def add_label(self, msg_id: str, label_name: str) -> bool:
+        """Add a label to a message"""
+        try:
+            # Ensure label exists
+            label_id = self._create_label(label_name)
+            if not label_id:
+                return False
+            
+            # Add label to message
+            self.service.users().messages().modify(
+                userId='me',
+                id=msg_id,
+                body={'addLabelIds': [label_id]}
+            ).execute()
+            
+            self.logger.info(f"Added label {label_name} to message {msg_id}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error adding label {label_name} to message {msg_id}: {str(e)}")
             return False
