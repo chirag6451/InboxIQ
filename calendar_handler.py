@@ -27,6 +27,11 @@ class CalendarHandler:
             key_points = ai_analysis.get('key_points', [])
             priority = ai_analysis.get('priority', 'normal')
             
+            # Check if we should create an event based on category and priority
+            if not self._should_create_event(category, priority, calendar_settings):
+                self.logger.info(f"Skipping calendar event for {category} email with {priority} priority")
+                return None
+            
             # Only create reminder if there are action items
             if not action_items:
                 return None
@@ -58,11 +63,11 @@ Original Email Preview:
                 'description': description,
                 'start': {
                     'dateTime': start_time.isoformat(),
-                    'timeZone': 'Asia/Kolkata',
+                    'timeZone': calendar_settings.get('timezone', 'Asia/Kolkata'),
                 },
                 'end': {
                     'dateTime': end_time.isoformat(),
-                    'timeZone': 'Asia/Kolkata',
+                    'timeZone': calendar_settings.get('timezone', 'Asia/Kolkata'),
                 },
                 'reminders': {
                     'useDefault': False,
@@ -81,7 +86,7 @@ Original Email Preview:
             event_id = created_event.get('id')
             
             if event_id:
-                self.logger.info(f"Created calendar event: {self.get_event_link(event_id)}")
+                self.logger.info(f"Created calendar event for {category} email with {priority} priority: {self.get_event_link(event_id)}")
                 return event_id
             
             return None
@@ -112,3 +117,28 @@ Original Email Preview:
             'purple': '3',    # Grape purple
         }
         return color_map.get(color.lower(), '1')  # Default to blue
+
+    def _should_create_event(self, category: str, priority: str, calendar_settings: Dict[str, Any]) -> bool:
+        """Check if an event should be created based on category and priority settings"""
+        try:
+            # First check if calendar creation is enabled
+            if not calendar_settings.get('create_reminder', False):
+                self.logger.debug(f"Calendar events disabled for category: {category}")
+                return False
+                
+            # Get priority settings for the category
+            category_priorities = calendar_settings.get('calendar_priorities', [])
+            
+            # If no specific priority settings, use default behavior (create for all)
+            if not category_priorities:
+                self.logger.debug(f"No priority settings for category {category}, using default behavior")
+                return True
+                
+            # Check if the email's priority is in the allowed priorities for this category
+            should_create = priority.lower() in [p.lower() for p in category_priorities]
+            self.logger.debug(f"Category: {category}, Priority: {priority}, Should create event: {should_create}")
+            return should_create
+            
+        except Exception as e:
+            self.logger.error(f"Error checking event creation settings: {str(e)}")
+            return False

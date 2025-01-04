@@ -92,20 +92,29 @@ For alerts vs notifications:
             
             Please analyze this email and provide a JSON response with the following structure:
             {{
-                "categories": ["urgent", "important", "notification", "support", "alert", "spam"],
-                "priority": "high/normal/low",
+                "categories": ["work", "meeting", "deadline", "invoice", "report", "follow_up", "support", "project", "sales", "inquiry_lead", "personal"],
+                "priority": "urgent/important/normal/low",
                 "key_points": ["key point 1", "key point 2"],
                 "action_items": ["action 1", "action 2"],
                 "spam": true/false,
                 "alert": true/false
             }}
             
-            Note: Categories should be one or more of: urgent, important, notification, support, alert, spam
+            Priority Guidelines:
+            - urgent: Time-sensitive matters requiring immediate attention (e.g., [URGENT] in subject, deadlines today)
+            - important: Significant but not time-critical (e.g., [IMPORTANT] in subject, deadlines this week)
+            - normal: Regular communications
+            - low: Non-critical, can be handled later
+            
+            Note: Categories should match one or more from the list above. If [URGENT] or [IMPORTANT] is in the subject, set priority accordingly.
             """
             
             response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": prompt}]
+                messages=[
+                    {"role": "system", "content": self._generate_system_prompt()},
+                    {"role": "user", "content": prompt}
+                ]
             )
             
             result = response.choices[0].message.content

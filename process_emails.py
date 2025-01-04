@@ -140,20 +140,35 @@ class EmailProcessor:
                         calendar_settings = category_config.get('calendar_settings', {})
                         
                         if calendar_settings.get('create_reminder', False):
-                            # Add AI analysis to email data
+                            # Process email with AI first
                             email_data = {
                                 'subject': subject,
                                 'sender': sender,
                                 'body': body,
+                                'priority': classification.get('priority', 'normal'),
                                 'ai_analysis': {
                                     'action_items': classification.get('action_items', []),
                                     'key_points': classification.get('key_points', []),
                                     'priority': classification.get('priority', 'normal')
                                 }
                             }
+                            
+                            # Process with AI to get additional insights
+                            ai_result = self.process_email_with_ai(email_data)
+                            
+                            # Ensure ai_analysis is a dictionary
+                            if isinstance(ai_result.get('ai_analysis'), str):
+                                try:
+                                    ai_result['ai_analysis'] = json.loads(ai_result['ai_analysis'])
+                                except:
+                                    ai_result['ai_analysis'] = {
+                                        'action_items': classification.get('action_items', []),
+                                        'key_points': classification.get('key_points', []),
+                                        'priority': classification.get('priority', 'normal')
+                                    }
 
                             event_id = self.calendar.create_reminder(
-                                email_data=email_data,
+                                email_data=ai_result,
                                 category=primary_category,
                                 calendar_settings=calendar_settings
                             )

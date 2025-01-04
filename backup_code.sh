@@ -1,11 +1,20 @@
 #!/bin/bash
 
+# Get current project name from directory name
+PROJECT_NAME=$(basename "$(pwd)")
+
 # Create timestamp in format YYYY-MM-DD_HHMM
 TIMESTAMP=$(date +"%Y-%m-%d_%H%M")
 
-# Create backup directory if it doesn't exist
-BACKUP_DIR="backups/backup_${TIMESTAMP}"
+# Set up backup directories
+BASE_BACKUP_DIR="/Users/chiragahmedabadi/dev/project_backups"
+PROJECT_BACKUP_DIR="${BASE_BACKUP_DIR}/${PROJECT_NAME}"
+BACKUP_DIR="${PROJECT_BACKUP_DIR}/backup_${TIMESTAMP}"
 SENSITIVE_DIR="${BACKUP_DIR}/sensitive"
+
+# Create required directories
+mkdir -p "${BASE_BACKUP_DIR}"
+mkdir -p "${PROJECT_BACKUP_DIR}"
 mkdir -p "${BACKUP_DIR}"
 mkdir -p "${SENSITIVE_DIR}"
 chmod 700 "${SENSITIVE_DIR}"  # Restrict permissions for sensitive directory
@@ -64,6 +73,7 @@ backup_pattern() {
 # Create a manifest file
 MANIFEST="${BACKUP_DIR}/backup_manifest.txt"
 echo "Backup created on $(date)" > "$MANIFEST"
+echo "Project: ${PROJECT_NAME}" >> "$MANIFEST"
 echo "Files included:" >> "$MANIFEST"
 
 # Backup regular files
@@ -101,34 +111,13 @@ if [ -d "tests" ]; then
     echo "- tests/" >> "$MANIFEST"
 fi
 
-# Add file hashes to manifest for integrity verification
-echo -e "\nFile hashes (SHA-256):" >> "$MANIFEST"
-for file in "${FILES_TO_BACKUP[@]}"; do
-    if [ -f "$file" ]; then
-        shasum -a 256 "$file" >> "$MANIFEST"
-    fi
-done
-
-# Add hashes for sensitive files
-echo -e "\nSensitive file hashes (SHA-256):" >> "$MANIFEST"
-for file in "${SENSITIVE_FILES[@]}"; do
-    if [[ "$file" == *"*"* ]]; then
-        # Handle wildcard patterns
-        for matched_file in $file; do
-            if [ -f "$matched_file" ]; then
-                shasum -a 256 "$matched_file" >> "$MANIFEST"
-            fi
-        done
-    else
-        if [ -f "$file" ]; then
-            shasum -a 256 "$file" >> "$MANIFEST"
-        fi
-    fi
-done
-
-# Set restrictive permissions on the sensitive directory
-chmod -R 600 "${SENSITIVE_DIR}"/*
-chmod 700 "${SENSITIVE_DIR}"
+# Add backup location information to manifest
+echo -e "\nBackup Information:" >> "$MANIFEST"
+echo "- Timestamp: ${TIMESTAMP}" >> "$MANIFEST"
+echo "- Project: ${PROJECT_NAME}" >> "$MANIFEST"
+echo "- Base Location: ${BASE_BACKUP_DIR}" >> "$MANIFEST"
+echo "- Project Backups: ${PROJECT_BACKUP_DIR}" >> "$MANIFEST"
+echo "- This Backup: ${BACKUP_DIR}" >> "$MANIFEST"
 
 echo "Backup completed successfully!"
 echo "Backup location: ${BACKUP_DIR}"
@@ -136,3 +125,9 @@ echo "Sensitive files location: ${SENSITIVE_DIR}"
 echo "A manifest file has been created at: ${MANIFEST}"
 echo -e "\nNOTE: Sensitive files have been backed up with restricted permissions (600)."
 echo "The sensitive directory is accessible only by the owner (700)."
+
+# Create a symlink to latest backup
+LATEST_LINK="${PROJECT_BACKUP_DIR}/latest"
+rm -f "${LATEST_LINK}"
+ln -s "${BACKUP_DIR}" "${LATEST_LINK}"
+echo "Created symlink to latest backup at: ${LATEST_LINK}"
