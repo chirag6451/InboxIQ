@@ -1,84 +1,37 @@
-# Python
+# Environment and configuration
+.env
+credentials.json
+token.json
+*.pyc
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+.env.*
+!.env.example
+!credentials.json.example
 
-# Virtual Environment
+# Logs and data
+*.log
+attachments/
+emails_*.json
+cron.log
+invoice_scanner.log
+
+# Virtual environment
 venv/
 env/
-ENV/
-.env
+.venv/
+.env/
 
-# IDE
-.idea/
+# IDE files
 .vscode/
+.idea/
 *.swp
 *.swo
-.DS_Store
 
-# Project specific
-token.json
-credentials.json
-*.log
-invoice_detection.log
-gmail_token.pickle
-client_secrets.json
-
-# Jupyter Notebook
-.ipynb_checkpoints
-*.ipynb
-
-# Testing
-.coverage
-htmlcov/
-.pytest_cache/
-.tox/
-.nox/
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-
-# Distribution / packaging
-.Python
-env/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Misc
-*.bak
-*.swp
-*.swo
-*~
+# OS files
 .DS_Store
 Thumbs.db
+
+# Sensitive data
+config_prod.py
+secrets/
+private/
