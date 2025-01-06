@@ -23,8 +23,19 @@ print("Make sure to:")
 print("1. Set APP_DOMAIN environment variable to your domain")
 print("2. Add this callback URL to Google Cloud Console authorized redirect URIs")
 
-# Initialize the authenticator with required scopes
-authenticator = GmailAuthenticator(Config.get_gmail_scopes())
+try:
+    # Initialize the authenticator with required scopes
+    authenticator = GmailAuthenticator(Config.get_gmail_scopes())
+except FileNotFoundError:
+    print("\nError: credentials.json file is missing!")
+    print("\nTo fix this:")
+    print("1. Go to Google Cloud Console (https://console.cloud.google.com)")
+    print("2. Create or select your project")
+    print("3. Enable Gmail API")
+    print("4. Create OAuth 2.0 credentials")
+    print("5. Download the credentials and save as 'credentials.json' in the project root directory")
+    print("6. Make sure to add this callback URL to authorized redirect URIs:", CALLBACK_URL)
+    exit(1)
 
 def get_html_template(token_exists, user_email, env_exists, creds_exists):
     """Generate the HTML template with proper status"""
