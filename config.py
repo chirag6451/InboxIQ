@@ -14,6 +14,9 @@ class Config:
     # OpenAI settings
     OPENAI_MODEL: str = field(default="gpt-3.5-turbo")
     
+    # Logging configuration
+    LOG_FILE = "app.log"
+    
     # Gmail API scopes required
     GMAIL_SCOPES = [
         'https://www.googleapis.com/auth/gmail.modify',
