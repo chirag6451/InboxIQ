@@ -212,3 +212,21 @@ class Config:
     def get_gmail_scopes(cls) -> List[str]:
         """Get the Gmail API scopes required for the application."""
         return cls.GMAIL_SCOPES
+
+    @classmethod
+    def from_env(cls):
+        """Create a Config instance from environment variables"""
+        config = cls()
+        
+        # Load source and target emails from environment
+        source_emails_str = os.getenv('SOURCE_EMAILS', '')
+        target_emails_str = os.getenv('TARGET_EMAILS', '')
+        
+        config.SOURCE_EMAILS = [email.strip() for email in source_emails_str.split(',') if email.strip()]
+        config.TARGET_EMAILS = [email.strip() for email in target_emails_str.split(',') if email.strip()]
+        
+        # Load OpenAI settings
+        if os.getenv('OPENAI_MODEL'):
+            config.OPENAI_MODEL = os.getenv('OPENAI_MODEL')
+            
+        return config
