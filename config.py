@@ -17,6 +17,11 @@ class Config:
     # Logging configuration
     LOG_FILE = "app.log"
     
+    # Attachment handling configuration
+    ATTACHMENT_DIR = "attachments"
+    ALLOWED_EXTENSIONS = {'pdf', 'txt', 'doc', 'docx', 'xls', 'xlsx', 'csv'}
+    MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024  # 10MB in bytes
+    
     # Gmail API scopes required
     GMAIL_SCOPES = [
         'https://www.googleapis.com/auth/gmail.modify',
