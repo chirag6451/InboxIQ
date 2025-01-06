@@ -15,16 +15,14 @@ class Config:
     OPENAI_MODEL: str = field(default="gpt-3.5-turbo")
     
     # Gmail API scopes required
-    GMAIL_SCOPES: List[str] = field(
-        default_factory=lambda: [
-            'https://www.googleapis.com/auth/gmail.modify',
-            'https://www.googleapis.com/auth/gmail.compose',
-            'https://www.googleapis.com/auth/gmail.send',
-            'https://www.googleapis.com/auth/gmail.readonly',
-            'https://www.googleapis.com/auth/calendar',
-            'https://www.googleapis.com/auth/calendar.events'
-        ]
-    )
+    GMAIL_SCOPES = [
+        'https://www.googleapis.com/auth/gmail.modify',
+        'https://www.googleapis.com/auth/gmail.compose',
+        'https://www.googleapis.com/auth/gmail.send',
+        'https://www.googleapis.com/auth/gmail.readonly',
+        'https://www.googleapis.com/auth/calendar',
+        'https://www.googleapis.com/auth/calendar.events'
+    ]
     
     # Calendar settings for reminders
     CALENDER_REMINDER_SETTINGS: Dict[str, Any] = field(
