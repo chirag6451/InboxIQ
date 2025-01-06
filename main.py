@@ -195,7 +195,12 @@ def main():
         logger.info("Please watch for the authentication URL that will be displayed below")
         logger.info("="*80)
 
-        gmail = GmailHandler(config)
+        # Initialize Gmail authenticator and get credentials
+        authenticator = GmailAuthenticator(Config.get_gmail_scopes())
+        credentials = authenticator.get_credentials()
+        
+        # Initialize Gmail handler with both credentials and config
+        gmail = GmailHandler(credentials, config)
         if not gmail.service:
             logger.info("Waiting for authentication to complete...")
             logger.info("Please authenticate using the URL displayed above")
