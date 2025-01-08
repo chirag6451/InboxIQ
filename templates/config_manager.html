@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InboxIQ Configuration Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/vue-toast-notification/dist/theme-default.css" rel="stylesheet">
+    <style>
+        .rule-card {
+            margin-bottom: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.25rem;
+            padding: 1rem;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .form-section {
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 0.25rem;
+        }
+        .keyword-tag {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            margin: 0.25rem;
+            background-color: #e9ecef;
+            border-radius: 0.25rem;
+        }
+        .keyword-tag .remove {
+            margin-left: 0.5rem;
+            cursor: pointer;
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="container py-4">
+        <h1 class="mb-4">InboxIQ Configuration Manager</h1>
+        
+        <!-- User Details Section -->
+        <div class="form-section">
+            <h3>User Details</h3>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Name</label>
+                    <input type="text" class="form-control" v-model="config.user_details.name">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" class="form-control" v-model="config.user_details.full_name">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Company</label>
+                    <input type="text" class="form-control" v-model="config.user_details.company">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Position</label>
+                    <input type="text" class="form-control" v-model="config.user_details.position">
+                </div>
+            </div>
+        </div>
+
+        <!-- Email Rules Section -->
+        <div class="form-section">
+            <h3>Email Rules</h3>
+            <div class="mb-3">
+                <button class="btn btn-primary" @click="addRule">Add New Rule</button>
+            </div>
+            
+            <div v-for="(rule, index) in config.email_categories" :key="index" class="rule-card">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Rule Name</label>
+                        <input type="text" class="form-control" v-model="rule.name">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Enabled</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" v-model="rule.enabled">
+                        </div>
+                    </div>
+                    
+                    <!-- Keywords -->
+                    <div class="col-12">
+                        <label class="form-label">Keywords</label>
+                        <div class="d-flex gap-2 mb-2">
+                            <input type="text" class="form-control" v-model="newKeywords[index]" 
+                                   @keyup.enter="addKeyword(index)">
+                            <button class="btn btn-secondary" @click="addKeyword(index)">Add</button>
+                        </div>
+                        <div>
+                            <span v-for="(keyword, kidx) in rule.keywords" :key="kidx" class="keyword-tag">
+                                {{ keyword }}
+                                <span class="remove" @click="removeKeyword(index, kidx)">&times;</span>
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <!-- From Emails -->
+                    <div class="col-12">
+                        <label class="form-label">From Emails</label>
+                        <div class="d-flex gap-2 mb-2">
+                            <input type="text" class="form-control" v-model="newFromEmails[index]" 
+                                   @keyup.enter="addFromEmail(index)">
+                            <button class="btn btn-secondary" @click="addFromEmail(index)">Add</button>
+                        </div>
+                        <div>
+                            <span v-for="(email, eidx) in rule.from_emails" :key="eidx" class="keyword-tag">
+                                {{ email }}
+                                <span class="remove" @click="removeFromEmail(index, eidx)">&times;</span>
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <!-- Target Emails -->
+                    <div class="col-12">
+                        <label class="form-label">Target Emails</label>
+                        <div class="d-flex gap-2 mb-2">
+                            <input type="text" class="form-control" v-model="newTargetEmails[index]" 
+                                   @keyup.enter="addTargetEmail(index)">
+                            <button class="btn btn-secondary" @click="addTargetEmail(index)">Add</button>
+                        </div>
+                        <div>
+                            <span v-for="(email, eidx) in rule.target_emails" :key="eidx" class="keyword-tag">
+                                {{ email }}
+                                <span class="remove" @click="removeTargetEmail(index, eidx)">&times;</span>
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <!-- Calendar Settings -->
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                Calendar Settings
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Create Reminder</label>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" 
+                                                   v-model="rule.calendar_settings.create_reminder">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Reminder Advance (minutes)</label>
+                                        <input type="number" class="form-control" 
+                                               v-model="rule.calendar_settings.reminder_advance">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Default Duration (minutes)</label>
+                                        <input type="number" class="form-control" 
+                                               v-model="rule.calendar_settings.default_duration">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Color</label>
+                                        <input type="color" class="form-control form-control-color" 
+                                               v-model="rule.calendar_settings.color">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-3 action-buttons">
+                    <button class="btn btn-danger" @click="removeRule(index)">Remove Rule</button>
+                    <button class="btn btn-secondary" @click="duplicateRule(index)">Duplicate</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Save Button -->
+        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+            <button class="btn btn-success" @click="saveConfig">Save Configuration</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.2.26"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue-toast-notification"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        const { createApp } = Vue
+        const app = createApp({
+            data() {
+                return {
+                    config: {
+                        user_details: {
+                            name: '',
+                            full_name: '',
+                            company: '',
+                            position: '',
+                            timezone: 'UTC',
+                            preferred_language: 'English'
+                        },
+                        email_categories: []
+                    },
+                    newKeywords: {},
+                    newFromEmails: {},
+                    newTargetEmails: {}
+                }
+            },
+            mounted() {
+                this.loadConfig()
+            },
+            methods: {
+                async loadConfig() {
+                    try {
+                        const response = await axios.get('/api/config')
+                        this.config = response.data
+                    } catch (error) {
+                        console.error('Error loading config:', error)
+                    }
+                },
+                async saveConfig() {
+                    try {
+                        await axios.post('/api/config', this.config)
+                        this.$toast.success('Configuration saved successfully!')
+                    } catch (error) {
+                        this.$toast.error('Error saving configuration')
+                        console.error('Error saving config:', error)
+                    }
+                },
+                addRule() {
+                    this.config.email_categories.push({
+                        name: 'New Rule',
+                        enabled: true,
+                        keywords: [],
+                        from_emails: [],
+                        target_emails: [],
+                        calendar_settings: {
+                            create_reminder: false,
+                            reminder_advance: 30,
+                            default_duration: 15,
+                            color: '#3498db',
+                            notification: true,
+                            calendar_priorities: ['normal']
+                        }
+                    })
+                },
+                removeRule(index) {
+                    this.config.email_categories.splice(index, 1)
+                },
+                duplicateRule(index) {
+                    const rule = JSON.parse(JSON.stringify(this.config.email_categories[index]))
+                    rule.name += ' (Copy)'
+                    this.config.email_categories.push(rule)
+                },
+                addKeyword(ruleIndex) {
+                    if (this.newKeywords[ruleIndex]) {
+                        this.config.email_categories[ruleIndex].keywords.push(this.newKeywords[ruleIndex])
+                        this.newKeywords[ruleIndex] = ''
+                    }
+                },
+                removeKeyword(ruleIndex, keywordIndex) {
+                    this.config.email_categories[ruleIndex].keywords.splice(keywordIndex, 1)
+                },
+                addFromEmail(ruleIndex) {
+                    if (this.newFromEmails[ruleIndex]) {
+                        this.config.email_categories[ruleIndex].from_emails.push(this.newFromEmails[ruleIndex])
+                        this.newFromEmails[ruleIndex] = ''
+                    }
+                },
+                removeFromEmail(ruleIndex, emailIndex) {
+                    this.config.email_categories[ruleIndex].from_emails.splice(emailIndex, 1)
+                },
+                addTargetEmail(ruleIndex) {
+                    if (this.newTargetEmails[ruleIndex]) {
+                        this.config.email_categories[ruleIndex].target_emails.push(this.newTargetEmails[ruleIndex])
+                        this.newTargetEmails[ruleIndex] = ''
+                    }
+                },
+                removeTargetEmail(ruleIndex, emailIndex) {
+                    this.config.email_categories[ruleIndex].target_emails.splice(emailIndex, 1)
+                }
+            }
+        })
+        app.use(VueToast)
+        app.mount('#app')
+    </script>
+</body>
+</html>

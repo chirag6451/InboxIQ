@@ -118,57 +118,80 @@ def process_emails(gmail: GmailHandler, analyzer: InvoiceAnalyzer, config: Confi
 
             for email in emails:
                 logger.info(f"Processing email: {email['subject']}")
+                sender_email = email.get('sender', '').lower()
 
                 try:
-                    # Process attachments
-                    attachments = process_attachments(gmail, email)
-                    logger.info(f"Processed {len(attachments)} attachments")
+                    # Check for direct forwarding first
+                    direct_forwarded = False
+                    for category, settings in config.EMAIL_CATEGORIES.items():
+                        if (settings.get('direct_forward', False) and 
+                            settings.get('enabled', True) and 
+                            any(sender_email.endswith(from_email.lower()) 
+                                for from_email in settings.get('from_emails', []))):
+                            
+                            logger.info(f"Direct forwarding email from {sender_email} based on {category} category")
+                            
+                            # Forward to target emails
+                            for target_email in settings.get('target_emails', []):
+                                success = gmail.forward_email(
+                                    to_email=target_email,
+                                    subject=f"FWD: {email['subject']} [{category}]",
+                                    body=f"""Original email from: {email['sender']}
+                                    \n\nOriginal message:
+                                    {email['body']}""",
+                                    attachments=email.get('attachments', []),
+                                    cc_list=settings.get('cc_to', [])
+                                )
+                                if success:
+                                    logger.info(f"Email directly forwarded to {target_email}")
+                            
+                            direct_forwarded = True
+                            break
 
-                    # Analyze content
-                    analysis_result = analyze_email_content(
-                        analyzer,
-                        email['body'],
-                        attachments
-                    )
+                    # If not directly forwarded, proceed with normal processing
+                    if not direct_forwarded:
+                        # Process attachments
+                        attachments = process_attachments(gmail, email)
+                        logger.info(f"Processed {len(attachments)} attachments")
 
-                    # Forward if invoice detected
-                    if analyzer.should_forward(analysis_result):
-                        logger.info("Invoice detected, forwarding email")
+                        # Analyze content
+                        analysis_result = analyze_email_content(
+                            analyzer,
+                            email['body'],
+                            attachments
+                        )
 
-                        for target_email in config.TARGET_EMAILS:
-                            success = gmail.forward_email(
-                                target_email,
-                                f"FWD: {email['subject']} - Invoice Detected",
-                                f"""Original email from: {email['sender']}
-                                \n\nInvoice Details:
-                                {analysis_result['invoice_data']}
-                                \n\nOriginal message:
-                                {email['body']}""",
-                                attachments
-                            )
+                        # Forward if invoice detected
+                        if analyzer.should_forward(analysis_result):
+                            logger.info("Invoice detected, forwarding email")
 
-                            if success:
-                                logger.info(f"Email forwarded to {target_email}")
-                            else:
-                                logger.error(f"Failed to forward email to {target_email}")
-                    else:
-                        logger.info("No invoice detected, skipping forward")
+                            for target_email in config.TARGET_EMAILS:
+                                success = gmail.forward_email(
+                                    to_email=target_email,
+                                    subject=f"FWD: {email['subject']} - Invoice Detected",
+                                    body=f"""Original email from: {email['sender']}
+                                    \n\nInvoice Details:
+                                    {analysis_result['invoice_data']}
+                                    \n\nOriginal message:
+                                    {email['body']}""",
+                                    attachments=attachments
+                                )
 
-                    # Mark email as read
+                                if success:
+                                    logger.info(f"Email forwarded to {target_email}")
+
+                    # Mark email as read after processing
                     if gmail.mark_as_read(email['id']):
                         logger.info("Email marked as read")
                     else:
                         logger.error("Failed to mark email as read")
 
                 except Exception as e:
-                    logger.error(f"Error processing email {email['id']}: {str(e)}")
+                    logger.error(f"Error processing email: {str(e)}")
                     continue
 
-                # Rate limiting pause between emails
-                time.sleep(60 / config.GMAIL_RATE_LIMIT)
-
         except Exception as e:
-            logger.error(f"Error processing source email {source_email}: {str(e)}")
+            logger.error(f"Error getting emails: {str(e)}")
             continue
 
 def main():

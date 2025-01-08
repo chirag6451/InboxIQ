@@ -47,161 +47,48 @@ class Config:
     # User Configuration
     USER_DETAILS: Dict[str, str] = field(
         default_factory=lambda: {
-            'name': 'John',  # User's first name
-            'full_name': 'John Smith',  # User's full name
-            'company': 'Example Corp',  # Company name
-            'position': 'Manager',  # Job position
+            'name': 'User',  # User's first name
+            'full_name': 'User Name',  # User's full name
+            'company': 'Company Name',  # Company name
+            'position': 'Position',  # Job position
             'timezone': 'UTC',  # User's timezone
             'preferred_language': 'English',  # Preferred language for communications
-            'email_signature': 'Best regards,\nJohn Smith\nManager | Example Corp'  # Email signature
+            'email_signature': 'Best regards,\nUser Name\nPosition | Company Name'  # Email signature
         }
     )
     
     # Email categories and their configurations
     EMAIL_CATEGORIES: Dict[str, dict] = field(
         default_factory=lambda: {
-            'work': {
+            'bank_notification': {
                 'enabled': True,
-                'keywords': ['project', 'task', 'deadline', 'update', 'status'],
-                'target_emails': ['manager@example.com'],
-                'cc_to': ['team@example.com'],
+                'keywords': ['account', 'transaction', 'deposit', 'withdrawal', 'balance', 'statement', 'bank', 'transfer', 'NEFT', 'RTGS', 'IMPS'],
+                'direct_forward': True,
+                'from_emails': ['alerts@bank.com', 'notifications@bank.com'],
+                'target_emails': ['user.email@example.com'],
                 'calendar_settings': {
                     'create_reminder': True,
-                    'reminder_advance': 45,  # minutes
-                    'default_duration': 60,  # minutes
-                    'color': 'red',
-                    'notification': True,
-                    'calendar_priorities': ['urgent', 'important'],
-                    'timezone': 'UTC'
-                }
-            },
-            'meeting': {
-                'enabled': True,
-                'keywords': ['meet', 'sync', 'discussion', 'call', 'conference'],
-                'target_emails': ['team@example.com'],
-                'calendar_settings': {
-                    'create_reminder': True,
-                    'reminder_advance': 30,
-                    'default_duration': 45,
-                    'color': 'yellow',
-                    'notification': True,
-                    'calendar_priorities': ['urgent', 'important', 'normal'],
-                    'timezone': 'UTC'
-                }
-            },
-            'deadline': {
-                'enabled': True,
-                'keywords': ['due', 'deadline', 'by', 'until', 'complete'],
-                'target_emails': ['manager@example.com'],
-                'calendar_settings': {
-                    'create_reminder': True,
-                    'reminder_advance': 60,
-                    'default_duration': 30,
-                    'color': 'blue',
-                    'notification': True,
-                    'calendar_priorities': ['urgent', 'important'],
-                    'timezone': 'UTC'
-                }
-            },
-            'invoice': {
-                'enabled': True,
-                'keywords': ['invoice', 'payment', 'bill', 'receipt', 'purchase'],
-                'target_emails': ['finance@example.com'],
-                'calendar_settings': {
-                    'create_reminder': True,
-                    'reminder_advance': 20,
-                    'default_duration': 30,
+                    'reminder_advance': 30,  # minutes
+                    'default_duration': 15,  # minutes
                     'color': 'green',
                     'notification': True,
-                    'calendar_priorities': ['urgent', 'important'],
+                    'calendar_priorities': ['important'],
                     'timezone': 'UTC'
                 }
             },
-            'report': {
+            'invoice_alerts': {
                 'enabled': True,
-                'keywords': ['report', 'analysis', 'metrics', 'performance', 'results'],
-                'target_emails': ['reports@example.com'],
+                'keywords': ['invoice', 'payment', 'due', 'bill', 'amount', 'payable', 'outstanding', 'reminder'],
+                'direct_forward': False,
+                'from_emails': [],
+                'target_emails': ['user.email@example.com'],
                 'calendar_settings': {
                     'create_reminder': True,
-                    'reminder_advance': 15,
-                    'default_duration': 30,
-                    'color': 'orange',
+                    'reminder_advance': 1440,  # 24 hours in minutes
+                    'default_duration': 15,  # minutes
+                    'color': 'red',
                     'notification': True,
                     'calendar_priorities': ['urgent'],
-                    'timezone': 'UTC'
-                }
-            },
-            'follow_up': {
-                'enabled': True,
-                'keywords': ['follow up', 'following up', 'checking in', 'status', 'update'],
-                'target_emails': ['team@example.com'],
-                'calendar_settings': {
-                    'create_reminder': True,
-                    'reminder_advance': 30,
-                    'default_duration': 30,
-                    'color': 'purple',
-                    'notification': True,
-                    'calendar_priorities': ['urgent', 'important'],
-                    'timezone': 'UTC'
-                }
-            },
-            'support': {
-                'enabled': True,
-                'keywords': ['help', 'support', 'issue', 'bug', 'ticket'],
-                'target_emails': ['support@example.com'],
-                'cc_to': ['manager@example.com'],
-                'calendar_settings': {
-                    'create_reminder': True,
-                    'reminder_advance': 30,
-                    'default_duration': 30,
-                    'color': 'brown',
-                    'notification': True,
-                    'calendar_priorities': ['urgent', 'important'],
-                    'timezone': 'UTC'
-                }
-            },
-            'project': {
-                'enabled': True,
-                'keywords': ['project', 'scope', 'planning', 'phase', 'milestone'],
-                'target_emails': ['project@example.com'],
-                'cc_to': ['manager@example.com'],
-                'calendar_settings': {
-                    'create_reminder': True,
-                    'reminder_advance': 45,
-                    'default_duration': 60,
-                    'color': 'gray',
-                    'notification': True,
-                    'calendar_priorities': ['urgent', 'important', 'normal'],
-                    'timezone': 'UTC'
-                }
-            },
-            'sales': {
-                'enabled': True,
-                'keywords': ['sale', 'deal', 'offer', 'discount', 'contract'],
-                'target_emails': ['sales@example.com'],
-                'cc_to': ['manager@example.com'],
-                'calendar_settings': {
-                    'create_reminder': True,
-                    'reminder_advance': 30,
-                    'default_duration': 45,
-                    'color': 'pink',
-                    'notification': True,
-                    'calendar_priorities': ['urgent', 'important'],
-                    'timezone': 'UTC'
-                }
-            },
-            'inquiry_lead': {
-                'enabled': True,
-                'keywords': ['lead', 'prospect', 'inquiry', 'request', 'information'],
-                'target_emails': ['sales@example.com'],
-                'cc_to': ['manager@example.com'],
-                'calendar_settings': {
-                    'create_reminder': True,
-                    'reminder_advance': 20,
-                    'default_duration': 30,
-                    'color': 'pink',
-                    'notification': True,
-                    'calendar_priorities': ['urgent', 'important', 'normal'],
                     'timezone': 'UTC'
                 }
             }

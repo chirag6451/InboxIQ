@@ -145,8 +145,8 @@ For alerts vs notifications:
                 'alert': False
             }
 
-    def get_target_emails(self, classification: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Get target email addresses based on classification"""
+    def get_target_emails(self, classification: Dict[str, Any], sender_email: str = None) -> List[Dict[str, Any]]:
+        """Get target email addresses based on classification and sender email"""
         targets = []
         
         # Get enabled categories
@@ -155,12 +155,26 @@ For alerts vs notifications:
             if conf.get('enabled', True)
         }
         
-        # Add targets for each category
+        # First check for direct forwarding based on sender email
+        if sender_email:
+            sender_email = sender_email.lower()
+            for category, config in enabled_categories.items():
+                if (config.get('direct_forward', False) and 
+                    any(sender_email.endswith(from_email.lower()) 
+                        for from_email in config.get('from_emails', []))):
+                    # Direct forward match found
+                    return [{'email': email, 'priority': 'high'} 
+                            for email in config.get('target_emails', [])]
+        
+        # If no direct forward match, process based on categories
         for category in classification.get('categories', []):
             if category in enabled_categories:
                 cat_config = enabled_categories[category]
+                # Skip if this category requires direct forwarding only
+                if cat_config.get('direct_forward', False):
+                    continue
+                # Add target emails for this category
                 target_emails = cat_config.get('target_emails', [])
-                
                 for email in target_emails:
                     targets.append({
                         'email': email,

@@ -1,9 +1,10 @@
-from flask import Flask, request, redirect, url_for, jsonify, session
+from flask import Flask, request, redirect, url_for, jsonify, session, render_template
 import os
 import logging
 from gmail_auth import GmailAuthenticator
 from gmail_handler import GmailHandler
 from config import Config
+import shutil
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -188,6 +189,94 @@ def revoke():
     except Exception as e:
         logger.error(f"Error revoking credentials: {str(e)}")
         return str(e), 500
+
+# Configuration Management Routes
+@app.route('/config')
+def config_manager():
+    return render_template('config_manager.html')
+
+@app.route('/api/config', methods=['GET'])
+def get_config():
+    try:
+        config = Config.from_env()
+        return jsonify({
+            'user_details': config.USER_DETAILS,
+            'email_categories': [
+                {
+                    'name': name,
+                    'enabled': True,
+                    'keywords': settings.get('keywords', []),
+                    'from_emails': settings.get('from_emails', []),
+                    'target_emails': settings.get('target_emails', []),
+                    'calendar_settings': settings.get('calendar_settings', {
+                        'create_reminder': False,
+                        'reminder_advance': 30,
+                        'default_duration': 15,
+                        'color': '#3498db',
+                        'notification': True,
+                        'calendar_priorities': ['normal']
+                    })
+                }
+                for name, settings in config.EMAIL_CATEGORIES.items()
+            ]
+        })
+    except Exception as e:
+        app.logger.error(f"Error loading configuration: {str(e)}")
+        return jsonify({'error': 'Failed to load configuration'}), 500
+
+@app.route('/api/config', methods=['POST'])
+def save_config():
+    try:
+        data = request.get_json()
+        
+        # Convert the configuration to Python format
+        config_dict = {
+            'USER_DETAILS': data['user_details'],
+            'EMAIL_CATEGORIES': {
+                rule['name']: {
+                    'keywords': rule['keywords'],
+                    'from_emails': rule['from_emails'],
+                    'target_emails': rule['target_emails'],
+                    'calendar_settings': rule['calendar_settings']
+                }
+                for rule in data['email_categories']
+            }
+        }
+        
+        # Create backup of current config
+        backup_file = 'config.py.bak'
+        if os.path.exists('config.py'):
+            shutil.copy2('config.py', backup_file)
+        
+        # Write new configuration
+        with open('config.py', 'w') as f:
+            f.write("from typing import Dict, List, Any\n\n")
+            f.write("class Config:\n")
+            f.write("    @classmethod\n")
+            f.write("    def from_env(cls) -> 'Config':\n")
+            f.write("        return cls()\n\n")
+            
+            # Write USER_DETAILS
+            f.write("    USER_DETAILS: Dict[str, str] = {\n")
+            for key, value in config_dict['USER_DETAILS'].items():
+                f.write(f"        '{key}': '{value}',\n")
+            f.write("    }\n\n")
+            
+            # Write EMAIL_CATEGORIES
+            f.write("    EMAIL_CATEGORIES: Dict[str, Dict[str, Any]] = {\n")
+            for name, settings in config_dict['EMAIL_CATEGORIES'].items():
+                f.write(f"        '{name}': {{\n")
+                f.write(f"            'keywords': {settings['keywords']},\n")
+                f.write(f"            'from_emails': {settings['from_emails']},\n")
+                f.write(f"            'target_emails': {settings['target_emails']},\n")
+                f.write(f"            'calendar_settings': {settings['calendar_settings']},\n")
+                f.write("        },\n")
+            f.write("    }\n")
+        
+        return jsonify({'message': 'Configuration saved successfully'})
+    except Exception as e:
+        app.logger.error(f"Error saving configuration: {str(e)}")
+        return jsonify({'error': 'Failed to save configuration'}), 500
 
 if __name__ == '__main__':
     print(f"\nCallback URL configured as: {CALLBACK_URL}")

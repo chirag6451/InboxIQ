@@ -4,12 +4,13 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
-from googleapiclient.discovery import build
 import logging
-from typing import List, Dict, Any, Optional
+from typing import Dict, List, Any, Optional
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from config import Config
 from gmail_auth import GmailAuthenticator
-from google.oauth2.credentials import Credentials
 
 class GmailHandler:
     """Handles Gmail API operations"""
@@ -177,7 +178,7 @@ class GmailHandler:
 
         if 'parts' in email_data['payload']:
             for part in email_data['payload']['parts']:
-                if part['mimeType'] == 'text/plain':
+                if part.get('mimeType') == 'text/plain':
                     body = base64.urlsafe_b64decode(
                         part['body']['data']
                     ).decode('utf-8')
@@ -213,42 +214,32 @@ class GmailHandler:
             self.logger.error(f"Error downloading attachment: {str(e)}")
             return None
 
-    def forward_email(self, msg_id: Optional[str], to_email: str) -> bool:
-        """Forward an email to specified address"""
+    def forward_email(self, to_email: str, subject: str, body: str, attachments: List[Dict[str, Any]] = None, cc_list: List[str] = None) -> bool:
+        """Forward an email to specified address with optional CC recipients"""
         try:
-            if not msg_id:
-                self.logger.error("Message ID is required for forwarding")
-                return False
-                
-            # Get the original message
-            original = self.get_message(msg_id)
-            if not original:
-                return False
-            
-            # Extract headers
-            headers = original['payload']['headers']
-            subject = next((h['value'] for h in headers if h['name'].lower() == 'subject'), 'No Subject')
-            from_email = next((h['value'] for h in headers if h['name'].lower() == 'from'), 'Unknown')
-            date = next((h['value'] for h in headers if h['name'].lower() == 'date'), '')
-            
             # Create forwarding message
             message = MIMEMultipart()
             message['to'] = to_email
-            message['subject'] = f"Fwd: {subject}"
+            message['subject'] = subject
             
-            # Create forwarding header
-            forward_msg = [
-                "---------- Forwarded message ----------",
-                f"From: {from_email}",
-                f"Date: {date}",
-                f"Subject: {subject}",
-                f"To: {to_email}",
-                "",
-                self._get_message_body(original)
-            ]
+            # Add CC recipients if provided
+            if cc_list:
+                message['cc'] = ', '.join(cc_list)
             
-            # Add the forwarded content
-            message.attach(MIMEText('\n'.join(forward_msg), 'plain'))
+            # Add the message body
+            message.attach(MIMEText(body, 'plain'))
+            
+            # Add attachments if any
+            if attachments:
+                for attachment in attachments:
+                    part = MIMEBase('application', 'octet-stream')
+                    part.set_payload(attachment['content'])
+                    encoders.encode_base64(part)
+                    part.add_header(
+                        'Content-Disposition',
+                        f'attachment; filename="{attachment["filename"]}"'
+                    )
+                    message.attach(part)
             
             # Encode and send
             raw = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
@@ -257,11 +248,13 @@ class GmailHandler:
                 body={'raw': raw}
             ).execute()
             
-            self.logger.info(f"Successfully forwarded message {msg_id} to {to_email}")
+            self.logger.info(f"Successfully forwarded message to {to_email}")
+            if cc_list:
+                self.logger.info(f"CC'd to: {', '.join(cc_list)}")
             return True
             
         except Exception as e:
-            self.logger.error(f"Error forwarding message {msg_id}: {str(e)}")
+            self.logger.error(f"Error forwarding message: {str(e)}")
             return False
 
     def _get_message_body(self, message_data: Dict[str, Any]) -> str:
