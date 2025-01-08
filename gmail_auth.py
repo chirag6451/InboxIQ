@@ -43,7 +43,9 @@ class GmailAuthenticator:
     def _get_redirect_uri(self):
         """Get the correct redirect URI from client configuration"""
         # Use the callback URL from app.py
-        redirect_uri = 'http://localhost:8989/oauth2callback'
+        redirect_uri = os.getenv('OAUTH_CALLBACK_URL')
+        if not redirect_uri:
+            raise ValueError("OAUTH_CALLBACK_URL environment variable is required")
         self.logger.debug(f"Using redirect URI: {redirect_uri}")
         return redirect_uri
 

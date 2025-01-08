@@ -14,7 +14,7 @@ app.secret_key = os.environ.get('FLASK_SECRET_KEY', os.urandom(24))
 
 # Domain configuration
 DOMAIN = os.environ.get('APP_DOMAIN', 'localhost:8989')  
-USE_HTTPS = False  # Force HTTP for local development
+USE_HTTPS = os.environ.get('USE_HTTPS', '').lower() == 'true'  # Get from environment
 PROTOCOL = 'https' if USE_HTTPS else 'http'
 CALLBACK_URL = f"{PROTOCOL}://{DOMAIN}/oauth2callback"
 
