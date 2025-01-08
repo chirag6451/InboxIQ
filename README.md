@@ -123,6 +123,51 @@ A typical executive receiving 100+ emails daily can:
   - Listing all backups
   - Deleting all backups
 
+### Advanced Email Forwarding Features
+
+#### 1. Category-Based Forwarding
+- **Smart Categorization**: Automatically categorizes emails using AI analysis
+- **Rule-Based Forwarding**: Forwards emails based on predefined categories
+- **Multiple Recipients**: Support for multiple target email addresses per category
+
+#### 2. Forwarding Rules Configuration
+- **Per-Category Settings**:
+  - Enable/disable forwarding for specific categories
+  - Set target email addresses for each category
+  - Configure direct forwarding or with AI summary
+  - Set up keyword triggers for automatic forwarding
+
+#### 3. Intelligent Forwarding Logic
+- **Content Analysis**: Uses AI to understand email context and importance
+- **Sender Verification**: Validates sender emails against whitelist
+- **Priority-Based**: Handles urgent emails with higher priority
+- **Duplicate Prevention**: Avoids forwarding duplicate content
+
+#### 4. Example Configurations
+```json
+{
+    "banking": {
+        "enabled": true,
+        "keywords": ["account", "transaction", "balance"],
+        "from_emails": ["alerts@bank.com"],
+        "target_emails": ["finance@company.com"],
+        "direct_forward": true
+    },
+    "invoices": {
+        "enabled": true,
+        "keywords": ["invoice", "payment", "due"],
+        "target_emails": ["accounting@company.com"],
+        "direct_forward": false
+    }
+}
+```
+
+#### 5. Security Features
+- **Email Validation**: Validates all sender and recipient addresses
+- **Content Filtering**: Screens for sensitive information
+- **Forwarding Logs**: Maintains detailed logs of all forwarded emails
+- **Rate Limiting**: Prevents spam and excessive forwarding
+
 ## Automated Email Processing Setup
 
 ### Understanding process_emails.py
