@@ -14,6 +14,7 @@ import os
 from openai import OpenAI
 from calendar_handler import CalendarHandler
 from collections import defaultdict
+import argparse
 
 class EmailProcessor:
     def __init__(self, gmail_handler, config):
@@ -25,6 +26,7 @@ class EmailProcessor:
         self.logger = logging.getLogger(__name__)
         self.summary = {
             'total_emails_processed': 0,
+            'actionable_emails': 0,  # New counter for emails that had actions taken
             'emails_forwarded': 0,
             'category_stats': defaultdict(int),
             'forwarding_details': [],
@@ -53,6 +55,9 @@ class EmailProcessor:
             
             for message in messages:
                 try:
+                    # Track if any action was taken for this email
+                    email_had_action = False
+                    
                     # Get full message details
                     msg_data = self.gmail.get_message(message['id'])
                     if not msg_data:
@@ -100,10 +105,9 @@ class EmailProcessor:
                     })
                     
                     # Update category stats
-                    for category in classification.get('categories', []):
-                        if category not in self.summary['category_stats']:
-                            self.summary['category_stats'][category] = 0
-                        self.summary['category_stats'][category] += 1
+                    primary_category = classification.get('categories', [])[0] if classification.get('categories', []) else None
+                    if primary_category:
+                        self.summary['category_stats'][primary_category] += 1
                     
                     # Skip if spam
                     if classification.get('spam', False):
@@ -155,18 +159,24 @@ class EmailProcessor:
                                 self.summary['emails_forwarded'] += 1
 
                     # Add to forwarding details
-                    self.summary['forwarding_details'].append({
-                        'subject': subject,
-                        'from': sender,
-                        'to': to,
-                        'cc': cc,
-                        'cc_recipient': is_cc,
-                        'date': email_date,
-                        'categories': classification.get('categories', []),
-                        'priority': classification.get('priority', 'normal'),
-                        'action_items': classification.get('action_items', []),
-                        'forwarded_to': forwarded_to
-                    })
+                    if forwarding_success:
+                        self.summary['forwarding_details'].append({
+                            'subject': subject,
+                            'from': sender,
+                            'to': to,
+                            'cc': cc,
+                            'cc_recipient': is_cc,
+                            'date': email_date,
+                            'categories': classification.get('categories', []),
+                            'priority': classification.get('priority', 'normal'),
+                            'action_items': classification.get('action_items', []),
+                            'forwarded_to': forwarded_to
+                        })
+
+                    # Update action tracking based on forwarding
+                    if forwarding_success:
+                        email_had_action = True
+                        self.summary['actionable_emails'] += 1
 
                     # Store action items in summary if present
                     if classification.get('action_items'):
@@ -219,6 +229,7 @@ class EmailProcessor:
                             )
 
                             if event_id:
+                                email_had_action = True
                                 event_link = self.calendar.get_event_link(event_id)
                                 self.summary['calendar_events'].append({
                                     'subject': subject,
@@ -227,6 +238,10 @@ class EmailProcessor:
                                     'priority': classification.get('priority', 'normal')
                                 })
                                 self.logger.info(f"Created calendar event for: {subject}")
+
+                    # Update category stats only for actionable emails
+                    if email_had_action:
+                        self.summary['category_stats'][primary_category] += 1
 
                     # Mark as read if forwarding was successful or no targets
                     if forwarding_success or not targets:
@@ -316,6 +331,7 @@ class EmailProcessor:
             # Prepare the context for OpenAI
             stats = {
                 'total_emails': self.summary['total_emails_processed'],
+                'actionable_emails': self.summary['actionable_emails'],
                 'forwarded': self.summary['emails_forwarded'],
                 'calendar_events': len(self.summary.get('calendar_events', [])),
                 'categories': self.summary.get('category_stats', {}),
@@ -329,13 +345,14 @@ class EmailProcessor:
             - User's name: {self.config.USER_DETAILS['name']}
             - Time: {stats['time']}
             - Total emails processed: {stats['total_emails']}
+            - Emails requiring action: {stats['actionable_emails']}
             - Emails forwarded: {stats['forwarded']}
             - Calendar events created: {stats['calendar_events']}
-            - Categories processed: {', '.join(stats['categories'].keys())}
+            - Categories with actions: {', '.join(stats['categories'].keys())}
             
             The introduction should:
             1. Be personal and engaging
-            2. Highlight key statistics
+            2. Focus on emails that required actions (forwarding, calendar events, etc.)
             3. Be concise (2-3 paragraphs)
             4. Use a professional but friendly tone
             5. Include any notable patterns or important observations
@@ -373,18 +390,82 @@ class EmailProcessor:
                 
                 <p>Here's your email processing report as of {datetime.now().strftime("%I:%M %p")}. 
                 I've processed {self.summary['total_emails_processed']} emails, 
-                with {self.summary['emails_forwarded']} being forwarded to appropriate contacts.</p>
+                with {self.summary['actionable_emails']} requiring actions.</p>
             </div>
             """
+
+    def _generate_action_items_summary(self) -> str:
+        """Generate an intuitive summary of all action items using OpenAI"""
+        if not self.summary.get('action_items'):
+            return ""
+
+        try:
+            # Prepare context for OpenAI
+            action_items_context = []
+            for item in self.summary['action_items']:
+                action_items_context.append({
+                    'subject': item.get('subject', 'No Subject'),
+                    'action_items': item.get('action_items', []),
+                    'priority': item.get('priority', 'normal'),
+                    'category': item.get('category', 'general')
+                })
+
+            prompt = f"""
+            Please create an intuitive and organized summary of the following action items from emails:
+
+            Action Items:
+            {json.dumps(action_items_context, indent=2)}
+
+            Please create a summary that:
+            1. Groups related actions together
+            2. Prioritizes urgent/important items
+            3. Provides a clear, bulleted structure
+            4. Adds context where helpful
+            5. Suggests any obvious next steps
+            6. Uses a professional but clear tone
+
+            Format the response in HTML with appropriate styling for a email report.
+            """
+
+            response = self.openai_client.chat.completions.create(
+                model=self.config.OPENAI_MODEL,
+                messages=[
+                    {"role": "system", "content": "You are a professional email assistant creating an action items summary."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7
+            )
+
+            summary = response.choices[0].message.content
+
+            # Wrap in styled div if not already wrapped
+            if not summary.strip().startswith('<div'):
+                summary = f"""
+                <div class="action-summary" style="background-color: #fff3e0; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #ff9800;">
+                    <h2 style="color: #e65100; margin-top: 0;">Action Items Summary</h2>
+                    {summary}
+                </div>
+                """
+
+            return summary
+
+        except Exception as e:
+            self.logger.error(f"Error generating action items summary: {str(e)}")
+            return self._format_action_items()  # Fallback to basic format
 
     def _generate_report_html(self) -> str:
         """Generate HTML report"""
         try:
             introduction = self._generate_introduction()
+            action_summary = self._generate_action_items_summary()  # New action items summary
             category_stats = self._format_category_stats()
             forwarding_details = self._format_forwarding_details()
             calendar_events = self._format_calendar_events()
             action_items = self._format_action_items()
+            
+            # Only include detailed action items if there's no summary
+            if action_summary:
+                action_items = ""  # Skip detailed list if we have a summary
             
             disclaimer = f"""
             <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 5px; font-size: 12px; color: #666;">
@@ -399,33 +480,56 @@ class EmailProcessor:
             <html>
             <head>
                 <style>
-                    body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-                    .section {{ margin: 20px 0; padding: 20px; background: #fff; border-radius: 5px; }}
-                    h2 {{ color: #2c3e50; }}
-                    table {{ width: 100%; border-collapse: collapse; margin: 10px 0; }}
-                    th, td {{ padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }}
-                    th {{ background-color: #f5f6fa; }}
-                    .priority-high {{ color: #e74c3c; }}
-                    .priority-normal {{ color: #3498db; }}
-                    .priority-low {{ color: #2ecc71; }}
+                    body {{
+                        font-family: Arial, sans-serif;
+                        line-height: 1.6;
+                        color: #333;
+                        max-width: 800px;
+                        margin: 0 auto;
+                        padding: 20px;
+                    }}
+                    .section {{
+                        margin: 20px 0;
+                        padding: 15px;
+                        background-color: #fff;
+                        border-radius: 5px;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    }}
+                    h2 {{
+                        color: #2c3e50;
+                        margin-top: 0;
+                    }}
+                    .stats-table {{
+                        width: 100%;
+                        border-collapse: collapse;
+                    }}
+                    .stats-table th, .stats-table td {{
+                        padding: 12px;
+                        text-align: left;
+                        border-bottom: 1px solid #ddd;
+                    }}
+                    .stats-table th {{
+                        background-color: #f8f9fa;
+                        font-weight: bold;
+                    }}
+                    .priority-high {{
+                        color: #e74c3c;
+                    }}
+                    .priority-medium {{
+                        color: #f39c12;
+                    }}
+                    .priority-low {{
+                        color: #27ae60;
+                    }}
                 </style>
             </head>
             <body>
-                <div class="section">
-                    {introduction}
-                </div>
-                <div class="section">
-                    {category_stats}
-                </div>
-                <div class="section">
-                    {forwarding_details}
-                </div>
-                <div class="section">
-                    {calendar_events}
-                </div>
-                <div class="section">
-                    {action_items}
-                </div>
+                {introduction}
+                {action_summary}
+                {category_stats}
+                {forwarding_details}
+                {calendar_events}
+                {action_items}
                 {disclaimer}
             </body>
             </html>
@@ -446,26 +550,30 @@ class EmailProcessor:
         if not self.summary['category_stats']:
             return ""
             
-        stats = [
-            '<div style="background-color: #f5f6fa; padding: 15px; border-radius: 5px; margin: 20px 0;">',
-            '<h3 style="color: #2c3e50; margin-top: 0;">Category Statistics:</h3>',
-            '<table style="width: 100%; border-collapse: collapse;">',
-            '<tr style="background-color: #34495e; color: white;">',
-            '<th style="padding: 10px; text-align: left;">Category</th>',
-            '<th style="padding: 10px; text-align: center;">Count</th>',
-            '</tr>'
-        ]
+        stats_html = """
+        <div class="section">
+            <h2>Category Statistics (Actionable Emails)</h2>
+            <table class="stats-table">
+                <tr>
+                    <th>Category</th>
+                    <th>Count</th>
+                </tr>
+        """
         
         for category, count in self.summary['category_stats'].items():
-            stats.append(f"""
-                <tr style="border-bottom: 1px solid #ddd;">
-                    <td style="padding: 10px; text-transform: capitalize;">{category}</td>
-                    <td style="padding: 10px; text-align: center;">{count}</td>
+            stats_html += f"""
+                <tr>
+                    <td>{category}</td>
+                    <td>{count}</td>
                 </tr>
-            """)
+            """
+            
+        stats_html += """
+            </table>
+        </div>
+        """
         
-        stats.extend(['</table>', '</div>'])
-        return '\n'.join(stats)
+        return stats_html
 
     def _format_forwarding_details(self) -> str:
         """Format forwarding details section of the report"""
@@ -597,6 +705,12 @@ class EmailProcessor:
         return text.strip()
 
 def main():
+    # Set up argument parser
+    parser = argparse.ArgumentParser(description='Process unread emails with InboxIQ')
+    parser.add_argument('--max-emails', type=int, default=10,
+                      help='Maximum number of emails to process (default: 10)')
+    args = parser.parse_args()
+
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -612,7 +726,7 @@ def main():
                 creds = Credentials.from_authorized_user_info(creds_info, Config.from_env().GMAIL_SCOPES)
                 gmail_handler = GmailHandler(credentials=creds, config=Config.from_env())
                 processor = EmailProcessor(gmail_handler, Config.from_env())
-                processor.process_emails(max_emails=10)
+                processor.process_emails(max_emails=args.max_emails)  # Use the command line argument
                 processor.generate_and_send_reports()
                 
         else:

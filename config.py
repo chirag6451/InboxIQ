@@ -47,13 +47,13 @@ class Config:
     # User Configuration
     USER_DETAILS: Dict[str, str] = field(
         default_factory=lambda: {
-            'name': 'User',  # User's first name
-            'full_name': 'User Name',  # User's full name
-            'company': 'Company Name',  # Company name
-            'position': 'Position',  # Job position
+            'name': 'Chirag',  # User's first name
+            'full_name': 'Chirag Ahmedbadi',  # User's full name
+            'company': 'IndaPoint Technologies Private Limited',  # Company name
+            'position': 'CTO',  # Job position
             'timezone': 'UTC',  # User's timezone
             'preferred_language': 'English',  # Preferred language for communications
-            'email_signature': 'Best regards,\nUser Name\nPosition | Company Name'  # Email signature
+            'email_signature': 'Best regards,\nJohn Smith\nManager | Example Corp'  # Email signature
         }
     )
     
@@ -64,10 +64,10 @@ class Config:
                 'enabled': True,
                 'keywords': ['account', 'transaction', 'deposit', 'withdrawal', 'balance', 'statement', 'bank', 'transfer', 'NEFT', 'RTGS', 'IMPS'],
                 'direct_forward': True,
-                'from_emails': ['alerts@bank.com', 'notifications@bank.com'],
-                'target_emails': ['user.email@example.com'],
+                'from_emails': ['alerts@hdfcbank.net', 'alerts@icicibank.com', 'donotreply@icicibank.com'],
+                'target_emails': ['tanvi@indapoint.com'],
                 'calendar_settings': {
-                    'create_reminder': True,
+                    'create_reminder': False,
                     'reminder_advance': 30,  # minutes
                     'default_duration': 15,  # minutes
                     'color': 'green',
@@ -81,7 +81,7 @@ class Config:
                 'keywords': ['invoice', 'payment', 'due', 'bill', 'amount', 'payable', 'outstanding', 'reminder'],
                 'direct_forward': False,
                 'from_emails': [],
-                'target_emails': ['user.email@example.com'],
+                'target_emails': ['tanvi@indapoint.com', 'accounts@indapoint.com'],
                 'calendar_settings': {
                     'create_reminder': True,
                     'reminder_advance': 1440,  # 24 hours in minutes
